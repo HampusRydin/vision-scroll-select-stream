@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
@@ -33,14 +32,6 @@ const Index = () => {
   // Fetch available feeds and detection modes on component mount
   useEffect(() => {
     // Simulating API calls for now, replace with actual API calls
-    const mockFeeds: FeedData[] = [
-      { id: "1", name: "Front Door", url: "/placeholder.svg", active: true, detectionMode: "none" },
-      { id: "2", name: "Back Yard", url: "/placeholder.svg", active: false, detectionMode: "none" },
-      { id: "3", name: "Garage", url: "/placeholder.svg", active: false, detectionMode: "none" },
-      { id: "4", name: "Driveway", url: "/placeholder.svg", active: false, detectionMode: "none" },
-      { id: "5", name: "Side Gate", url: "/placeholder.svg", active: false, detectionMode: "none" },
-    ];
-    
     const mockDetectionModes: DetectionMode[] = [
       { id: "none", name: "None", description: "No detection" },
       { id: "motion", name: "Motion Detection", description: "Detects movement in the frame" },
@@ -49,13 +40,52 @@ const Index = () => {
       { id: "object", name: "Object Detection", description: "Identifies various objects in the frame" },
     ];
     
-    setFeeds(mockFeeds);
     setDetectionModes(mockDetectionModes);
     setActiveFeeds(["1"]);
 
     // Add initial terminal message
     addTerminalMessage("System initialized. Ready for detection.");
+
+    // Simulate receiving new feed connections from backend
+    // In a real implementation, this would be a WebSocket or SSE connection
+    const mockBackendUpdates = [
+      { id: "1", name: "Front Door", url: "/placeholder.svg", active: true, detectionMode: "none" },
+      { id: "2", name: "Back Yard", url: "/placeholder.svg", active: false, detectionMode: "none" },
+    ];
+
+    mockBackendUpdates.forEach((feed, index) => {
+      setTimeout(() => {
+        handleNewFeed(feed);
+      }, index * 1000); // Simulate feeds connecting at different times
+    });
   }, []);
+
+  // Function to handle new feed connections
+  const handleNewFeed = (newFeed: FeedData) => {
+    setFeeds(prevFeeds => {
+      const feedExists = prevFeeds.some(feed => feed.id === newFeed.id);
+      if (!feedExists) {
+        addTerminalMessage(`New camera feed connected: ${newFeed.name}`);
+        toast({
+          title: "New Camera Connected",
+          description: `${newFeed.name} has been added to available feeds.`,
+        });
+        return [...prevFeeds, newFeed];
+      }
+      return prevFeeds;
+    });
+  };
+
+  const updateFeedName = (id: string, newName: string) => {
+    setFeeds(prevFeeds =>
+      prevFeeds.map(feed =>
+        feed.id === id
+          ? { ...feed, name: newName }
+          : feed
+      )
+    );
+    addTerminalMessage(`Camera feed ${id} renamed to: ${newName}`);
+  };
 
   const addTerminalMessage = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -156,6 +186,7 @@ const Index = () => {
         feeds={feeds}
         activeFeeds={activeFeeds}
         onToggleFeed={toggleFeed}
+        onUpdateFeedName={updateFeedName}
       />
       
       {/* Main content area */}
