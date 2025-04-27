@@ -6,6 +6,7 @@ import Terminal from "@/components/Terminal";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
 export interface FeedData {
   id: string;
@@ -32,9 +33,7 @@ const Index = () => {
   const [currentFeedIndex, setCurrentFeedIndex] = useState(0);
   const { toast } = useToast();
 
-  // Fetch available feeds and detection modes on component mount
   useEffect(() => {
-    // Simulating API calls for now, replace with actual API calls
     const mockDetectionModes: DetectionMode[] = [
       { id: "none", name: "None", description: "No detection" },
       { id: "motion", name: "Motion Detection", description: "Detects movement in the frame" },
@@ -46,11 +45,8 @@ const Index = () => {
     setDetectionModes(mockDetectionModes);
     setActiveFeeds(["1"]);
 
-    // Add initial terminal message
     addTerminalMessage("System initialized. Ready for detection.");
 
-    // Simulate receiving new feed connections from backend
-    // In a real implementation, this would be a WebSocket or SSE connection
     const mockBackendUpdates = [
       { id: "1", name: "Front Door", url: "/placeholder.svg", active: true, detectionMode: "none" },
       { id: "2", name: "Back Yard", url: "/placeholder.svg", active: false, detectionMode: "none" },
@@ -59,11 +55,10 @@ const Index = () => {
     mockBackendUpdates.forEach((feed, index) => {
       setTimeout(() => {
         handleNewFeed(feed);
-      }, index * 1000); // Simulate feeds connecting at different times
+      }, index * 1000);
     });
   }, []);
 
-  // Function to handle new feed connections
   const handleNewFeed = (newFeed: FeedData) => {
     setFeeds(prevFeeds => {
       const feedExists = prevFeeds.some(feed => feed.id === newFeed.id);
@@ -97,7 +92,6 @@ const Index = () => {
 
   const toggleFeed = (id: string) => {
     if (activeFeeds.includes(id)) {
-      // Don't allow deactivating the last active feed
       if (activeFeeds.length === 1) {
         toast({
           title: "Cannot deactivate",
@@ -108,7 +102,6 @@ const Index = () => {
       }
       setActiveFeeds(prev => prev.filter(feedId => feedId !== id));
     } else {
-      // Don't allow more than 5 feeds
       if (activeFeeds.length >= 5) {
         toast({
           title: "Maximum feeds reached",
@@ -120,7 +113,6 @@ const Index = () => {
       setActiveFeeds(prev => [...prev, id]);
     }
     
-    // Reset current feed index
     setCurrentFeedIndex(0);
   };
 
@@ -150,7 +142,6 @@ const Index = () => {
           addTerminalMessage(`Set detection mode for ${feed.name} to ${modeId}`);
         }
         
-        // Simulate detection results after a short delay
         if (modeId !== 'none' && prompt) {
           setTimeout(() => {
             const detections = ["person (87%)", "backpack (63%)"];
@@ -190,61 +181,60 @@ const Index = () => {
     : null;
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Sidebar for feed selection */}
-      <Sidebar 
-        feeds={feeds}
-        activeFeeds={activeFeeds}
-        onToggleFeed={toggleFeed}
-        onUpdateFeedName={updateFeedName}
-      />
-      
-      {/* Main content area */}
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <div className="flex-1 flex flex-col md:flex-row p-4 gap-4">
-          {/* Video feed section */}
-          <div className="flex-1 flex flex-col">
-            <div className="relative flex-1 min-h-[300px]">
-              {/* Navigation buttons */}
-              {activeFeeds.length > 1 && (
-                <>
-                  <Button 
-                    variant="secondary" 
-                    size="icon" 
-                    className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60"
-                    onClick={handlePrevFeed}
-                  >
-                    <ChevronLeft />
-                  </Button>
-                  <Button 
-                    variant="secondary" 
-                    size="icon" 
-                    className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60"
-                    onClick={handleNextFeed}
-                  >
-                    <ChevronRight />
-                  </Button>
-                </>
-              )}
+    <ResizablePanelGroup direction="horizontal" className="min-h-screen">
+      <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+        <Sidebar 
+          feeds={feeds}
+          activeFeeds={activeFeeds}
+          onToggleFeed={toggleFeed}
+          onUpdateFeedName={updateFeedName}
+        />
+      </ResizablePanel>
 
-              {/* Current feed */}
-              {enhancedDisplayedFeed && (
-                <VideoFeed 
-                  feed={enhancedDisplayedFeed}
-                  onChangeDetectionMode={changeDetectionMode}
-                />
-              )}
+      <ResizableHandle withHandle />
 
-            </div>
+      <ResizablePanel defaultSize={55} minSize={40}>
+        <div className="flex-1 flex flex-col p-4 h-full">
+          <div className="relative flex-1 min-h-[300px]">
+            {activeFeeds.length > 1 && (
+              <>
+                <Button 
+                  variant="secondary" 
+                  size="icon" 
+                  className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60"
+                  onClick={handlePrevFeed}
+                >
+                  <ChevronLeft />
+                </Button>
+                <Button 
+                  variant="secondary" 
+                  size="icon" 
+                  className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60"
+                  onClick={handleNextFeed}
+                >
+                  <ChevronRight />
+                </Button>
+              </>
+            )}
+
+            {enhancedDisplayedFeed && (
+              <VideoFeed 
+                feed={enhancedDisplayedFeed}
+                onChangeDetectionMode={changeDetectionMode}
+              />
+            )}
           </div>
-          
-          {/* Terminal section */}
-          <Card className="w-full md:w-96 flex flex-col">
-            <Terminal messages={terminalOutput} />
-          </Card>
         </div>
-      </div>
-    </div>
+      </ResizablePanel>
+
+      <ResizableHandle withHandle />
+
+      <ResizablePanel defaultSize={25} minSize={20} maxSize={40}>
+        <Card className="h-full">
+          <Terminal messages={terminalOutput} />
+        </Card>
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 };
 

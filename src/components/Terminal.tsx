@@ -20,8 +20,8 @@ const Terminal = ({ messages }: TerminalProps) => {
       <div className="bg-black text-white p-2 font-medium">
         Detection Output
       </div>
-      <ScrollArea className="flex-1 p-3 terminal-text bg-black text-green-400">
-        <div ref={scrollRef}>
+      <ScrollArea className="flex-1">
+        <div className="p-3 terminal-text bg-black text-green-400" ref={scrollRef}>
           {messages.length > 0 ? (
             messages.map((message, index) => (
               <div key={index} className="py-1">
