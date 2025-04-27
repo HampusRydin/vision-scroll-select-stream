@@ -13,6 +13,9 @@ export interface FeedData {
   url: string;
   active: boolean;
   detectionMode: string;
+  prompts?: Record<string, string>;
+  totalFeeds?: number;
+  feedIndex?: number;
 }
 
 export interface DetectionMode {
@@ -121,34 +124,34 @@ const Index = () => {
     setCurrentFeedIndex(0);
   };
 
-  const changeDetectionMode = async (feedId: string, modeId: string) => {
+  const changeDetectionMode = async (feedId: string, modeId: string, prompt?: string) => {
     try {
-      // This would normally be an API call to change the detection mode
-      // For now, we'll just simulate it
-      
-      // In a real implementation, you would do something like:
-      // await fetch(`/api/feeds/${feedId}/detection-mode`, {
-      //   method: 'PUT',
-      //   body: JSON.stringify({ modeId }),
-      //   headers: { 'Content-Type': 'application/json' }
-      // });
-      
       setFeeds(prev => 
         prev.map(feed => 
           feed.id === feedId 
-            ? { ...feed, detectionMode: modeId } 
+            ? { 
+                ...feed, 
+                detectionMode: modeId,
+                prompts: {
+                  ...feed.prompts,
+                  [modeId]: prompt !== undefined ? prompt : feed.prompts?.[modeId] || ''
+                }
+              } 
             : feed
         )
       );
 
-      const mode = detectionModes.find(mode => mode.id === modeId);
       const feed = feeds.find(feed => feed.id === feedId);
       
-      if (mode && feed) {
-        addTerminalMessage(`Set detection mode for ${feed.name} to ${mode.name}`);
+      if (feed) {
+        if (prompt !== undefined) {
+          addTerminalMessage(`Updated ${modeId} prompt for ${feed.name}: ${prompt}`);
+        } else {
+          addTerminalMessage(`Set detection mode for ${feed.name} to ${modeId}`);
+        }
         
         // Simulate detection results after a short delay
-        if (modeId !== 'none') {
+        if (modeId !== 'none' && prompt) {
           setTimeout(() => {
             const detections = ["person (87%)", "backpack (63%)"];
             addTerminalMessage(`Detection results for ${feed.name}: ${detections.join(", ")}`);
@@ -178,6 +181,13 @@ const Index = () => {
   };
 
   const displayedFeed = feeds.find(feed => feed.id === activeFeeds[currentFeedIndex]);
+  const enhancedDisplayedFeed = displayedFeed 
+    ? {
+        ...displayedFeed,
+        totalFeeds: activeFeeds.length,
+        feedIndex: currentFeedIndex
+      }
+    : null;
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
@@ -218,27 +228,13 @@ const Index = () => {
               )}
 
               {/* Current feed */}
-              {displayedFeed && (
+              {enhancedDisplayedFeed && (
                 <VideoFeed 
-                  feed={displayedFeed}
-                  detectionModes={detectionModes}
+                  feed={enhancedDisplayedFeed}
                   onChangeDetectionMode={changeDetectionMode}
                 />
               )}
 
-              {/* Pagination indicator */}
-              {activeFeeds.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
-                  {activeFeeds.map((_, index) => (
-                    <div 
-                      key={index} 
-                      className={`w-2 h-2 rounded-full ${
-                        index === currentFeedIndex ? 'bg-primary' : 'bg-gray-500'
-                      }`}
-                    ></div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
           
