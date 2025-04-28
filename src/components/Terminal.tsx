@@ -11,7 +11,12 @@ const Terminal = ({ messages }: TerminalProps) => {
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      // Use setTimeout to ensure scrolling happens after render
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      }, 0);
     }
   }, [messages]);
 
@@ -20,22 +25,25 @@ const Terminal = ({ messages }: TerminalProps) => {
       <div className="bg-black text-white p-2 font-medium">
         Detection Output
       </div>
-      <ScrollArea className="flex-1 overflow-y-auto">
-        <div 
-          ref={scrollRef} 
-          className="p-3 terminal-text bg-black text-green-400 max-h-full overflow-y-auto"
-        >
-          {messages.length > 0 ? (
-            messages.map((message, index) => (
-              <div key={index} className="py-1">
-                {message}
-              </div>
-            ))
-          ) : (
-            <div className="text-muted-foreground">No detection data available</div>
-          )}
-        </div>
-      </ScrollArea>
+      <div className="flex-1 bg-black overflow-hidden">
+        <ScrollArea className="h-[calc(100%-2.5rem)]">
+          <div 
+            ref={scrollRef} 
+            className="p-3 terminal-text text-green-400 max-h-full"
+            style={{ minHeight: "100%" }}
+          >
+            {messages.length > 0 ? (
+              messages.map((message, index) => (
+                <div key={index} className="py-1">
+                  {message}
+                </div>
+              ))
+            ) : (
+              <div className="text-muted-foreground">No detection data available</div>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
     </div>
   );
 };
