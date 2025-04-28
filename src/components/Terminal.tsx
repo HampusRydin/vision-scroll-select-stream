@@ -10,14 +10,8 @@ const Terminal = ({ messages }: TerminalProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Ensure we scroll to the bottom whenever messages change
     if (scrollRef.current) {
-      // Small timeout to ensure the DOM has updated before scrolling
-      setTimeout(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-      }, 10);
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -26,11 +20,10 @@ const Terminal = ({ messages }: TerminalProps) => {
       <div className="bg-black text-white p-2 font-medium">
         Detection Output
       </div>
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-y-auto">
         <div 
           ref={scrollRef} 
-          className="p-3 terminal-text bg-black text-green-400 h-full min-h-[200px] overflow-y-auto"
-          style={{ maxHeight: "calc(100vh - 200px)" }}
+          className="p-3 terminal-text bg-black text-green-400 max-h-full overflow-y-auto"
         >
           {messages.length > 0 ? (
             messages.map((message, index) => (
