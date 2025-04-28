@@ -1,5 +1,5 @@
 
-import { useEffect, useRef } from "react";
+import { useRef, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface TerminalProps {
@@ -7,17 +7,12 @@ interface TerminalProps {
 }
 
 const Terminal = ({ messages }: TerminalProps) => {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
+  // This effect will handle scrolling to bottom when messages change
   useEffect(() => {
-    // Ensure we scroll to the bottom whenever messages change
-    if (scrollRef.current) {
-      // Small timeout to ensure the DOM has updated before scrolling
-      setTimeout(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-      }, 10);
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -26,12 +21,12 @@ const Terminal = ({ messages }: TerminalProps) => {
       <div className="bg-black text-white p-2 font-medium">
         Detection Output
       </div>
-      <ScrollArea className="flex-1">
-        <div 
-          ref={scrollRef} 
-          className="p-3 terminal-text bg-black text-green-400 h-full min-h-[200px] overflow-y-auto"
-          style={{ maxHeight: "calc(100vh - 200px)" }}
-        >
+      <div 
+        className="flex-1 bg-black overflow-auto" 
+        style={{ maxHeight: "calc(100vh - 200px)" }}
+        ref={scrollAreaRef}
+      >
+        <div className="p-3 terminal-text text-green-400 min-h-[200px]">
           {messages.length > 0 ? (
             messages.map((message, index) => (
               <div key={index} className="py-1">
@@ -42,7 +37,7 @@ const Terminal = ({ messages }: TerminalProps) => {
             <div className="text-muted-foreground">No detection data available</div>
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 };

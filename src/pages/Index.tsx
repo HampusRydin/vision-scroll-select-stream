@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
@@ -152,17 +151,19 @@ const Index = () => {
       const feed = feeds.find(feed => feed.id === feedId);
       
       if (feed) {
-        if (prompt !== undefined) {
-          addTerminalMessage(`Updated ${modeId} prompt for ${feed.name}: ${prompt}`);
-        } else {
+        if (modeId !== feed.detectionMode) {
           addTerminalMessage(`Set detection mode for ${feed.name} to ${modeId}`);
         }
         
-        if (modeId !== 'none' && prompt) {
-          setTimeout(() => {
-            const detections = ["person (87%)", "backpack (63%)"];
-            addTerminalMessage(`Detection results for ${feed.name}: ${detections.join(", ")}`);
-          }, 2000);
+        if (prompt !== undefined) {
+          addTerminalMessage(`Updated ${modeId} prompt for ${feed.name}: ${prompt}`);
+          
+          if (modeId !== 'none') {
+            setTimeout(() => {
+              const detections = ["person (87%)", "backpack (63%)"];
+              addTerminalMessage(`Detection results for ${feed.name}: ${detections.join(", ")}`);
+            }, 2000);
+          }
         }
       }
     } catch (error) {
