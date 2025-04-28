@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import {
   Select,
   SelectContent,
@@ -8,8 +9,9 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Circle } from "lucide-react";
+import { Circle, Send } from "lucide-react";
 import { FeedData } from "@/pages/Index";
+import { Button } from "@/components/ui/button";
 
 interface VideoFeedProps {
   feed: FeedData;
@@ -17,6 +19,8 @@ interface VideoFeedProps {
 }
 
 const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
+  const [promptInput, setPromptInput] = useState(feed.prompts?.[feed.detectionMode] || "");
+  
   const detectionModes = [
     { id: "none", name: "None", prompt: false },
     { id: "object", name: "Object Detection", prompt: true },
@@ -47,6 +51,16 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     const mode = detectionModes.find(mode => mode.id === feed.detectionMode) ||
                 detectionModes.find(mode => mode.children?.some(child => child.id === feed.detectionMode));
     return mode?.prompt || mode?.children?.find(child => child.id === feed.detectionMode)?.prompt;
+  };
+
+  const handleModeChange = (value: string) => {
+    onChangeDetectionMode(feed.id, value);
+    // Reset prompt input when mode changes
+    setPromptInput(feed.prompts?.[value] || "");
+  };
+
+  const handleSendPrompt = () => {
+    onChangeDetectionMode(feed.id, feed.detectionMode, promptInput);
   };
 
   return (
@@ -81,7 +95,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
       <div className="p-3 bg-card flex items-center justify-between">
         <Select
           value={feed.detectionMode}
-          onValueChange={(value) => onChangeDetectionMode(feed.id, value)}
+          onValueChange={handleModeChange}
         >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Select mode" />
@@ -119,12 +133,26 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
         </Select>
 
         {shouldShowPrompt() && (
-          <Input
-            className="w-[200px]"
-            placeholder={`Enter ${getCurrentModeName().toLowerCase()} prompt...`}
-            value={feed.prompts?.[feed.detectionMode] || ''}
-            onChange={(e) => onChangeDetectionMode(feed.id, feed.detectionMode, e.target.value)}
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              className="w-[200px]"
+              placeholder={`Enter ${getCurrentModeName().toLowerCase()} prompt...`}
+              value={promptInput}
+              onChange={(e) => setPromptInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSendPrompt();
+                }
+              }}
+            />
+            <Button 
+              size="icon"
+              onClick={handleSendPrompt}
+              variant="secondary"
+            >
+              <Send size={16} />
+            </Button>
+          </div>
         )}
       </div>
     </Card>

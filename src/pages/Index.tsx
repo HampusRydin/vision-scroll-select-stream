@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
@@ -83,6 +84,21 @@ const Index = () => {
       )
     );
     addTerminalMessage(`Camera feed ${id} renamed to: ${newName}`);
+  };
+
+  const updateFeedUrl = (id: string, newUrl: string) => {
+    setFeeds(prevFeeds =>
+      prevFeeds.map(feed =>
+        feed.id === id
+          ? { ...feed, url: newUrl }
+          : feed
+      )
+    );
+    addTerminalMessage(`Updated URL for ${feeds.find(feed => feed.id === id)?.name || id}`);
+    toast({
+      title: "Feed URL Updated",
+      description: `URL for ${feeds.find(feed => feed.id === id)?.name || id} has been updated.`,
+    });
   };
 
   const addTerminalMessage = (message: string) => {
@@ -188,6 +204,7 @@ const Index = () => {
           activeFeeds={activeFeeds}
           onToggleFeed={toggleFeed}
           onUpdateFeedName={updateFeedName}
+          onUpdateFeedUrl={updateFeedUrl}
         />
       </ResizablePanel>
 
