@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import {
   Select,
@@ -23,7 +24,6 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   const [promptInput, setPromptInput] = useState(feed.prompts?.[feed.detectionMode] || "");
   const [isPlaying, setIsPlaying] = useState(false);
   const [isVideoFeed, setIsVideoFeed] = useState(true);
-  const [isLiveStream, setIsLiveStream] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [errorDetails, setErrorDetails] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
@@ -54,7 +54,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     if (videoRef.current) {
       videoRef.current.load(); // Force reload of video element with new source
       
-      if (isPlaying || isLiveStream) {
+      if (isPlaying) {
         const playPromise = videoRef.current.play();
         
         if (playPromise !== undefined) {
@@ -115,24 +115,28 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
                     
     // Set state based on the type of feed
     setIsVideoFeed(isVideoFile || isStream);
-    setIsLiveStream(isStream && !isVideoFile);
     
     console.log("Feed URL:", url);
-    console.log("Is live stream:", isStream && !isVideoFile);
-    
-    // Auto-play IP camera streams when loaded
-    if (isStream && !isVideoFile && videoRef.current) {
+
+    // Try playing the video immediately for IP cameras
+    if (isStream && videoRef.current) {
       setIsPlaying(true);
-      const playPromise = videoRef.current.play();
       
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.error("Error playing stream:", error);
-          setIsPlaying(false);
-          setHasError(true);
-          setErrorDetails(getErrorMessage(error));
-        });
-      }
+      // Small delay to let the video element initialize properly
+      setTimeout(() => {
+        if (videoRef.current) {
+          const playPromise = videoRef.current.play();
+          
+          if (playPromise !== undefined) {
+            playPromise.catch(error => {
+              console.error("Error playing stream:", error);
+              setIsPlaying(false);
+              setHasError(true);
+              setErrorDetails(getErrorMessage(error));
+            });
+          }
+        }
+      }, 100);
     }
   }, [feed.url]);
 
@@ -301,10 +305,9 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
             src={feed.url}
             playsInline
             muted
-            loop={!isLiveStream} // Only loop if not a live stream
+            loop={false}
             onLoadedData={handleVideoLoaded}
             onError={handleVideoError}
-            crossOrigin="anonymous"
           />
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30">
@@ -320,13 +323,6 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
           >
             {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
           </Button>
-          
-          {isLiveStream && !hasError && !isLoading && (
-            <div className="absolute top-12 right-4 bg-red-600 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
-              LIVE
-            </div>
-          )}
         </>
       );
     }
