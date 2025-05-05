@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import VideoFeed from "@/components/VideoFeed";
 import Terminal from "@/components/Terminal";
@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export interface FeedData {
   id: string;
@@ -247,11 +248,30 @@ const Index = () => {
               </>
             )}
 
-            {enhancedDisplayedFeed && (
+            {enhancedDisplayedFeed ? (
               <VideoFeed 
                 feed={enhancedDisplayedFeed}
                 onChangeDetectionMode={changeDetectionMode}
               />
+            ) : (
+              <Card className="flex flex-col h-full items-center justify-center text-center p-6 bg-muted/20">
+                <Alert variant="destructive" className="max-w-md mb-4 bg-destructive/10">
+                  <AlertTriangle className="h-5 w-5 mr-2" />
+                  <AlertDescription>
+                    No active camera feeds available
+                  </AlertDescription>
+                </Alert>
+                <div className="mt-4 text-muted-foreground">
+                  <p>Activate a camera feed from the sidebar to view the stream</p>
+                  <div className="w-full h-48 mt-6 bg-muted rounded-md flex items-center justify-center">
+                    <img 
+                      src="https://images.unsplash.com/photo-1518770660439-4636190af475" 
+                      alt="No camera feed" 
+                      className="max-h-full max-w-full object-contain opacity-20"
+                    />
+                  </div>
+                </div>
+              </Card>
             )}
           </div>
         </div>

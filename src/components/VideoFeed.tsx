@@ -65,7 +65,8 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     // Check for streaming protocols and IP camera patterns
     const isStream = url.includes('rtsp://') || url.includes('rtmp://') || 
                     url.includes('http://') || url.includes('https://') ||
-                    url.includes('stream') || url.match(/\d+\.\d+\.\d+\.\d+/);
+                    url.includes('stream') || 
+                    (url.match(/\d+\.\d+\.\d+\.\d+/) !== null); // Fix: Check if match returns non-null
                     
     // Set state based on the type of feed
     setIsVideoFeed(isVideoFile || isStream);
