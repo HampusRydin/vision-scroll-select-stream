@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
@@ -72,6 +73,23 @@ const Index = () => {
     });
   }, []);
 
+  const validateUrl = (url: string): boolean => {
+    // Basic URL validation
+    if (!url) return false;
+    
+    // Check for common video formats
+    const isVideoFile = /\.(mp4|webm|mov|avi|mkv)$/i.test(url);
+    
+    // Check for streaming protocols or IP format
+    const isStreamingUrl = url.includes('rtsp://') || 
+                          url.includes('rtmp://') || 
+                          url.includes('http://') || 
+                          url.includes('https://') ||
+                          /\d+\.\d+\.\d+\.\d+/.test(url);
+                          
+    return isVideoFile || isStreamingUrl;
+  };
+
   const handleNewFeed = (newFeed: FeedData) => {
     setFeeds(prevFeeds => {
       const feedExists = prevFeeds.some(feed => feed.id === newFeed.id);
@@ -99,6 +117,15 @@ const Index = () => {
   };
 
   const updateFeedUrl = (id: string, newUrl: string) => {
+    if (!validateUrl(newUrl)) {
+      toast({
+        title: "Invalid URL format",
+        description: "Please enter a valid stream URL or IP address",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setFeeds(prevFeeds =>
       prevFeeds.map(feed =>
         feed.id === id
@@ -106,10 +133,13 @@ const Index = () => {
           : feed
       )
     );
-    addTerminalMessage(`Updated URL for ${feeds.find(feed => feed.id === id)?.name || id}`);
+    
+    const feedName = feeds.find(feed => feed.id === id)?.name || id;
+    addTerminalMessage(`Updated URL for ${feedName}`);
+    
     toast({
       title: "Feed URL Updated",
-      description: `URL for ${feeds.find(feed => feed.id === id)?.name || id} has been updated.`,
+      description: `URL for ${feedName} has been updated.`,
     });
   };
 

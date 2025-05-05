@@ -9,9 +9,10 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, Camera, CameraOff, Send } from "lucide-react";
+import { Play, Pause, Camera, CameraOff, Send, AlertTriangle } from "lucide-react";
 import { FeedData } from "@/pages/Index";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface VideoFeedProps {
   feed: FeedData;
@@ -23,6 +24,8 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isVideoFeed, setIsVideoFeed] = useState(true);
   const [isLiveStream, setIsLiveStream] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   
   const detectionModes = [
@@ -41,18 +44,34 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   ];
 
   useEffect(() => {
-    // Reset video state when feed changes
+    // Reset video state and error state when feed changes
+    setHasError(false);
+    setIsLoading(true);
+    
     if (videoRef.current) {
+      videoRef.current.load(); // Force reload of video element with new source
+      
       if (isPlaying) {
-        videoRef.current.play().catch(error => {
-          console.error("Error playing video:", error);
-          setIsPlaying(false);
-        });
+        const playPromise = videoRef.current.play();
+        
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.error("Error playing video:", error);
+            setIsPlaying(false);
+            
+            // If autoplay fails due to browser policy
+            if (error.name === "NotAllowedError") {
+              console.log("Autoplay prevented by browser policy");
+            } else {
+              setHasError(true);
+            }
+          });
+        }
       } else {
         videoRef.current.pause();
       }
     }
-  }, [feed.id, isPlaying]);
+  }, [feed.id, feed.url]);
 
   useEffect(() => {
     // Determine if the current URL is a video source or IP camera stream
@@ -66,7 +85,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     const isStream = url.includes('rtsp://') || url.includes('rtmp://') || 
                     url.includes('http://') || url.includes('https://') ||
                     url.includes('stream') || 
-                    (url.match(/\d+\.\d+\.\d+\.\d+/) !== null); // Fix: Check if match returns non-null
+                    /\d+\.\d+\.\d+\.\d+/.test(url); // Better IP address check
                     
     // Set state based on the type of feed
     setIsVideoFeed(isVideoFile || isStream);
@@ -75,12 +94,28 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     // Auto-play IP camera streams when loaded
     if (isStream && !isVideoFile && videoRef.current) {
       setIsPlaying(true);
-      videoRef.current.play().catch(error => {
-        console.error("Error playing stream:", error);
-        setIsPlaying(false);
-      });
+      const playPromise = videoRef.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error("Error playing stream:", error);
+          setIsPlaying(false);
+          setHasError(true);
+        });
+      }
     }
   }, [feed.url]);
+
+  const handleVideoLoaded = () => {
+    setIsLoading(false);
+    setHasError(false);
+  };
+
+  const handleVideoError = () => {
+    setIsLoading(false);
+    setHasError(true);
+    console.error("Video failed to load:", feed.url);
+  };
 
   const getCurrentModeName = () => {
     for (const mode of detectionModes) {
@@ -114,12 +149,100 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current.play().catch(error => {
-          console.error("Error playing video:", error);
-        });
+        const playPromise = videoRef.current.play();
+        
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.error("Error playing video:", error);
+            setHasError(true);
+          });
+        }
       }
       setIsPlaying(!isPlaying);
     }
+  };
+
+  const renderVideoContent = () => {
+    if (hasError) {
+      return (
+        <div className="h-full flex flex-col items-center justify-center p-6 bg-muted/20">
+          <Alert variant="destructive" className="max-w-md mb-4 bg-destructive/10">
+            <AlertTriangle className="h-5 w-5 mr-2" />
+            <AlertDescription>
+              Failed to load camera feed
+            </AlertDescription>
+          </Alert>
+          <p className="text-sm text-muted-foreground mt-2">
+            The URL may be incorrect or the camera might be offline
+          </p>
+          <div className="w-full h-48 mt-6 bg-muted rounded-md flex items-center justify-center">
+            <img 
+              src="https://images.unsplash.com/photo-1518770660439-4636190af475" 
+              alt="Camera error" 
+              className="max-h-full max-w-full object-contain opacity-30"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (isVideoFeed) {
+      return (
+        <>
+          <video 
+            ref={videoRef}
+            className="w-full h-full object-cover"
+            src={feed.url}
+            playsInline
+            muted
+            loop={!isLiveStream} // Only loop if not a live stream
+            onLoadedData={handleVideoLoaded}
+            onError={handleVideoError}
+          />
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          )}
+          <Button 
+            variant="secondary" 
+            size="icon"
+            className="absolute bottom-4 right-4 bg-black/50 hover:bg-black/70"
+            onClick={togglePlayback}
+          >
+            {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+          </Button>
+          
+          {isLiveStream && !hasError && !isLoading && (
+            <div className="absolute top-12 right-4 bg-red-600 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+              LIVE
+            </div>
+          )}
+        </>
+      );
+    }
+
+    return (
+      <div 
+        className="w-full h-full video-feed"
+        style={{ 
+          backgroundImage: `url(${feed.url})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}
+      >
+        <Button 
+          variant="secondary" 
+          size="icon"
+          className="absolute bottom-4 right-4 bg-black/50 hover:bg-black/70"
+          onClick={() => {}}
+          disabled
+        >
+          <CameraOff className="h-5 w-5" />
+        </Button>
+      </div>
+    );
   };
 
   return (
@@ -138,52 +261,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
 
       {/* Video display */}
       <div className="flex-1 relative">
-        {isVideoFeed ? (
-          <>
-            <video 
-              ref={videoRef}
-              className="w-full h-full object-cover"
-              src={feed.url}
-              playsInline
-              muted
-              loop={!isLiveStream} // Only loop if not a live stream
-            />
-            <Button 
-              variant="secondary" 
-              size="icon"
-              className="absolute bottom-4 right-4 bg-black/50 hover:bg-black/70"
-              onClick={togglePlayback}
-            >
-              {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-            </Button>
-            
-            {isLiveStream && (
-              <div className="absolute top-12 right-4 bg-red-600 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
-                LIVE
-              </div>
-            )}
-          </>
-        ) : (
-          <div 
-            className="w-full h-full video-feed"
-            style={{ 
-              backgroundImage: `url(${feed.url})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center'
-            }}
-          >
-            <Button 
-              variant="secondary" 
-              size="icon"
-              className="absolute bottom-4 right-4 bg-black/50 hover:bg-black/70"
-              onClick={() => {}}
-              disabled
-            >
-              <CameraOff className="h-5 w-5" />
-            </Button>
-          </div>
-        )}
+        {renderVideoContent()}
         <div className="absolute top-0 left-0 p-3 bg-black/50 text-white text-sm w-fit">
           {feed.name}
         </div>
