@@ -120,14 +120,6 @@ const Index = () => {
 
   const toggleFeed = (id: string) => {
     if (activeFeeds.includes(id)) {
-      if (activeFeeds.length === 1) {
-        toast({
-          title: "Cannot deactivate",
-          description: "At least one feed must be active",
-          variant: "destructive",
-        });
-        return;
-      }
       setActiveFeeds(prev => prev.filter(feedId => feedId !== id));
     } else {
       if (activeFeeds.length >= 5) {
