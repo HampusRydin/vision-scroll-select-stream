@@ -110,8 +110,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     const isStream = url.includes('rtsp://') || url.includes('rtmp://') || 
                     url.includes('http://') || url.includes('https://') ||
                     url.includes('stream') || url.includes('video_feed') ||
-                    /^(?:http|https):\/\/(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]+)?(?:\/[\w\/\.\-]*)?$/.test(url) ||
-                    /^(?:http|https):\/\/[a-zA-Z0-9\-\.]+(?::[0-9]+)?(?:\/[\w\/\.\-]*)?$/.test(url);
+                    /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]+)?(?:\/[\w\/\.\_\-\~\:\?\#\[\]\@\!\$\&\'\(\)\*\+\,\;\=]*)?$/.test(url);
                     
     // Set state based on the type of feed
     setIsVideoFeed(isVideoFile || isStream);
