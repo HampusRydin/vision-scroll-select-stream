@@ -9,10 +9,9 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Send, AlertTriangle } from "lucide-react";
+import { Send } from "lucide-react";
 import { FeedData } from "@/pages/Index";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface VideoFeedProps {
   feed: FeedData;
@@ -78,29 +77,17 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
         ))}
       </div>
 
-      {/* Camera feed display or error message when URL is empty */}
+      {/* Camera feed display using img tag directly with the user-provided URL */}
       <div className="flex-1 relative">
-        {feed.url ? (
-          <>
-            <img 
-              src={feed.url}
-              alt={`${feed.name} camera feed`}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute top-0 left-0 p-3 bg-black/50 text-white text-sm w-fit">
-              {feed.name}
-            </div>
-          </>
-        ) : (
-          <div className="flex items-center justify-center h-full p-6 bg-muted/20">
-            <Alert variant="destructive" className="max-w-md bg-destructive/10">
-              <AlertTriangle className="h-5 w-5 mr-2" />
-              <AlertDescription>
-                No camera URL provided. Please update the feed URL in the sidebar.
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
+        <img 
+          src={feed.url}
+          alt={`${feed.name} camera feed`}
+          className="w-full h-full object-cover"
+          style={{ objectFit: "cover" }}
+        />
+        <div className="absolute top-0 left-0 p-3 bg-black/50 text-white text-sm w-fit">
+          {feed.name}
+        </div>
       </div>
       
       {/* Controls */}
