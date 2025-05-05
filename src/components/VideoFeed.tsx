@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import {
   Select,
@@ -13,6 +12,7 @@ import { Play, Pause, Camera, CameraOff, Send, AlertTriangle, Info } from "lucid
 import { FeedData } from "@/pages/Index";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface VideoFeedProps {
   feed: FeedData;
@@ -27,6 +27,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   const [hasError, setHasError] = useState(false);
   const [errorDetails, setErrorDetails] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   
   const detectionModes = [
@@ -45,7 +46,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   ];
 
   useEffect(() => {
-    // Reset video state and error state when feed changes
+    // Reset video state and error state when feed changes or on retry
     setHasError(false);
     setErrorDetails("");
     setIsLoading(true);
@@ -53,7 +54,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     if (videoRef.current) {
       videoRef.current.load(); // Force reload of video element with new source
       
-      if (isPlaying) {
+      if (isPlaying || isLiveStream) {
         const playPromise = videoRef.current.play();
         
         if (playPromise !== undefined) {
@@ -65,6 +66,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
             if (error.name === "NotAllowedError") {
               console.log("Autoplay prevented by browser policy");
               setErrorDetails("Browser prevented autoplay. Click play to start the stream.");
+              setHasError(false); // This is a minor issue, not a full error
             } else {
               setHasError(true);
               setErrorDetails(getErrorMessage(error));
@@ -75,20 +77,26 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
         videoRef.current.pause();
       }
     }
-  }, [feed.id, feed.url]);
+  }, [feed.id, feed.url, retryCount]);
 
-  // Function to get a user-friendly error message
+  // Enhanced error message function with more specific diagnostics
   const getErrorMessage = (error: any): string => {
     if (error?.name === "NotSupportedError") {
       return "The video format is not supported by your browser, or the stream might be offline.";
     } else if (error?.name === "SecurityError") {
-      return "Security error: Camera access might be blocked due to CORS or permissions.";
-    } else if (error?.name === "NetworkError") {
-      return "Network error: Unable to connect to the camera stream.";
+      return "Security error: Camera access might be blocked due to CORS. Try enabling CORS on your camera server.";
+    } else if (error?.name === "NetworkError" || error?.message?.includes("network")) {
+      return "Network error: Unable to connect to the camera stream. Check that the IP address is correct and accessible from your current network.";
     } else if (error?.name === "NotAllowedError") {
       return "Permission denied: Browser prevented autoplay.";
+    } else if (error?.code === 2) {
+      return "Network error: The camera might be on a different network or behind a firewall.";
+    } else if (error?.code === 3) {
+      return "Decoding error: The video format might not be compatible with your browser.";
+    } else if (error?.code === 4) {
+      return "Format not supported: The camera stream format is not compatible or the URL might be incorrect.";
     }
-    return error?.message || "Unknown error loading camera feed";
+    return error?.message || "Unknown error loading camera feed. Check that the camera is powered on and the URL is correct.";
   };
 
   useEffect(() => {
@@ -102,12 +110,15 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     // Check for streaming protocols and IP camera patterns
     const isStream = url.includes('rtsp://') || url.includes('rtmp://') || 
                     url.includes('http://') || url.includes('https://') ||
-                    url.includes('stream') || 
-                    /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]+)?(?:\/[\w\/\.]+)?\b/.test(url); // Better IP address check
+                    url.includes('stream') || url.includes('video_feed') ||
+                    /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]+)?(?:\/[\w\/\.\_\-\~\:\?\#\[\]\@\!\$\&\'\(\)\*\+\,\;\=]*)?$/.test(url);
                     
     // Set state based on the type of feed
     setIsVideoFeed(isVideoFile || isStream);
     setIsLiveStream(isStream && !isVideoFile);
+    
+    console.log("Feed URL:", url);
+    console.log("Is live stream:", isStream && !isVideoFile);
     
     // Auto-play IP camera streams when loaded
     if (isStream && !isVideoFile && videoRef.current) {
@@ -129,6 +140,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     setIsLoading(false);
     setHasError(false);
     setErrorDetails("");
+    console.log("Video loaded successfully:", feed.url);
   };
 
   const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
@@ -139,6 +151,12 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     const errorCode = videoElement.error?.code;
     const errorMessage = videoElement.error?.message;
     
+    console.error("Video error:", {
+      code: errorCode,
+      message: errorMessage,
+      url: feed.url
+    });
+    
     let detailedError = "Failed to load camera feed";
     
     switch (errorCode) {
@@ -146,13 +164,13 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
         detailedError = "Loading was aborted";
         break;
       case 2: // MEDIA_ERR_NETWORK
-        detailedError = "Network error occurred while loading";
+        detailedError = "Network error: The camera might be on a different network or the URL is incorrect";
         break;
       case 3: // MEDIA_ERR_DECODE
         detailedError = "Video decoding error or unsupported format";
         break;
       case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
-        detailedError = "Video format not supported or camera stream unavailable";
+        detailedError = "Video format not supported or camera stream unavailable. Check if the URL endpoint returns a valid video stream.";
         break;
       default:
         detailedError = errorMessage || "Unknown error loading video";
@@ -216,6 +234,13 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     }
   };
 
+  const retryLoading = () => {
+    setRetryCount(prev => prev + 1);
+    setIsLoading(true);
+    setHasError(false);
+    setErrorDetails("");
+  };
+
   const renderVideoContent = () => {
     if (hasError) {
       return (
@@ -229,13 +254,13 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
           {errorDetails && (
             <Alert className="max-w-md mb-4 bg-muted/50">
               <Info className="h-5 w-5 mr-2" />
-              <AlertDescription className="text-sm">
+              <AlertDescription className="text-sm whitespace-pre-wrap">
                 {errorDetails}
               </AlertDescription>
             </Alert>
           )}
           <p className="text-sm text-muted-foreground mt-2">
-            The URL may be incorrect or the camera might be offline
+            For IP cameras, check that the endpoint returns a valid video stream
           </p>
           <div className="w-full h-48 mt-6 bg-muted rounded-md flex items-center justify-center">
             <img 
@@ -244,14 +269,25 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
               className="max-h-full max-w-full object-contain opacity-30"
             />
           </div>
-          <Button 
-            variant="secondary" 
-            size="sm"
-            className="mt-4"
-            onClick={togglePlayback}
-          >
-            <Play className="h-4 w-4 mr-2" /> Try Again
-          </Button>
+          <div className="flex gap-2 mt-4">
+            <Button 
+              variant="secondary" 
+              size="sm"
+              onClick={retryLoading}
+            >
+              <Play className="h-4 w-4 mr-2" /> Try Again
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Open feed URL in new tab for manual testing
+                window.open(feed.url, '_blank');
+              }}
+            >
+              Test URL
+            </Button>
+          </div>
         </div>
       );
     }
@@ -273,6 +309,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-white ml-3">Connecting...</p>
             </div>
           )}
           <Button 
@@ -407,4 +444,3 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
 };
 
 export default VideoFeed;
-

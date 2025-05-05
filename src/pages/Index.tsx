@@ -1,12 +1,11 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import VideoFeed from "@/components/VideoFeed";
 import Terminal from "@/components/Terminal";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -74,24 +73,35 @@ const Index = () => {
   }, []);
 
   const validateUrl = (url: string): boolean => {
-    // Basic URL validation
+    // Basic URL validation, but more permissive for internal network addresses
     if (!url) return false;
     
-    // Check for common video formats
-    const isVideoFile = /\.(mp4|webm|mov|avi|mkv)$/i.test(url);
-    
-    // Enhanced check for streaming protocols or IP format
-    // This includes standard URLs, IP addresses with optional port and path
-    const isStreamingUrl = url.includes('rtsp://') || 
-                          url.includes('rtmp://') || 
-                          url.includes('http://') || 
-                          url.includes('https://') ||
-                          /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]+)?(?:\/[\w\/\.\-\_]+)?\b/.test(url);
-                          
-    return isVideoFile || isStreamingUrl;
+    try {
+      // Try to create a URL object to validate basic URL structure
+      new URL(url);
+      return true;
+    } catch (e) {
+      // If URL parsing fails, check if it might be an IP without protocol
+      const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(:[0-9]+)?(\/[\w.\-~:/?#[\]@!$&'()*+,;=]*)?$/;
+      if (ipRegex.test(url)) {
+        // It looks like an IP without protocol, consider it valid
+        return true;
+      }
+      return false;
+    }
   };
 
   const handleNewFeed = (newFeed: FeedData) => {
+    // Make sure URL has protocol
+    let processedUrl = newFeed.url;
+    
+    // Add http:// if it's missing and looks like an IP address
+    if (!processedUrl.startsWith('http://') && !processedUrl.startsWith('https://') && 
+        /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}/.test(processedUrl)) {
+      processedUrl = `http://${processedUrl}`;
+      newFeed.url = processedUrl;
+    }
+    
     // Basic URL validation before adding
     if (!validateUrl(newFeed.url)) {
       addTerminalMessage(`Warning: Feed URL format for ${newFeed.name} may not be supported`);
@@ -101,10 +111,15 @@ const Index = () => {
       const feedExists = prevFeeds.some(feed => feed.id === newFeed.id);
       if (!feedExists) {
         addTerminalMessage(`New camera feed connected: ${newFeed.name}`);
-        toast({
-          title: "New Camera Connected",
-          description: `${newFeed.name} has been added to available feeds.`,
-        });
+        
+        // Don't call toast during render, defer it
+        setTimeout(() => {
+          toast({
+            title: "New Camera Connected",
+            description: `${newFeed.name} has been added to available feeds.`,
+          });
+        }, 0);
+        
         return [...prevFeeds, newFeed];
       }
       return prevFeeds;
@@ -123,7 +138,16 @@ const Index = () => {
   };
 
   const updateFeedUrl = (id: string, newUrl: string) => {
-    if (!validateUrl(newUrl)) {
+    // Make sure URL has protocol
+    let processedUrl = newUrl;
+    
+    // Add http:// if it's missing and looks like an IP address
+    if (!processedUrl.startsWith('http://') && !processedUrl.startsWith('https://') && 
+        /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}/.test(processedUrl)) {
+      processedUrl = `http://${processedUrl}`;
+    }
+    
+    if (!validateUrl(processedUrl)) {
       toast({
         title: "Invalid URL format",
         description: "Please enter a valid stream URL or IP address",
@@ -135,13 +159,13 @@ const Index = () => {
     setFeeds(prevFeeds =>
       prevFeeds.map(feed =>
         feed.id === id
-          ? { ...feed, url: newUrl }
+          ? { ...feed, url: processedUrl }
           : feed
       )
     );
     
     const feedName = feeds.find(feed => feed.id === id)?.name || id;
-    addTerminalMessage(`Updated URL for ${feedName}: ${newUrl}`);
+    addTerminalMessage(`Updated URL for ${feedName}: ${processedUrl}`);
     
     toast({
       title: "Feed URL Updated",
@@ -317,4 +341,3 @@ const Index = () => {
 };
 
 export default Index;
-
