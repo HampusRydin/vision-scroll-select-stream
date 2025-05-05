@@ -13,6 +13,10 @@ import { Send, AlertTriangle } from "lucide-react";
 import { FeedData } from "@/pages/Index";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+
+// API endpoint to which we'll send the prompt data
+const API_ENDPOINT = "https://api.example.com/prompts"; // You can change this URL as needed
 
 interface VideoFeedProps {
   feed: FeedData;
@@ -21,6 +25,8 @@ interface VideoFeedProps {
 
 const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   const [promptInput, setPromptInput] = useState(feed.prompts?.[feed.detectionMode] || "");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
   
   const detectionModes = [
     { id: "none", name: "None", prompt: false },
@@ -60,8 +66,58 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     setPromptInput(feed.prompts?.[value] || "");
   };
 
-  const handleSendPrompt = () => {
-    onChangeDetectionMode(feed.id, feed.detectionMode, promptInput);
+  const sendPromptData = async (prompt: string) => {
+    setIsSubmitting(true);
+    
+    try {
+      const payload = {
+        feedId: feed.id,
+        feedName: feed.name,
+        detectionMode: feed.detectionMode,
+        prompt: prompt,
+        timestamp: new Date().toISOString()
+      };
+
+      const response = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      // Show success toast message
+      toast({
+        title: "Prompt Sent",
+        description: `Successfully sent ${getCurrentModeName()} prompt for ${feed.name}.`,
+      });
+
+      // Also update the local state through the callback
+      onChangeDetectionMode(feed.id, feed.detectionMode, prompt);
+      
+      return true;
+    } catch (error) {
+      console.error('Error sending prompt data:', error);
+      
+      // Show error toast message
+      toast({
+        title: "Error Sending Prompt",
+        description: `Failed to send prompt to server: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive",
+      });
+      
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSendPrompt = async () => {
+    await sendPromptData(promptInput);
   };
 
   return (
@@ -156,11 +212,13 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
                   handleSendPrompt();
                 }
               }}
+              disabled={isSubmitting}
             />
             <Button 
               size="icon"
               onClick={handleSendPrompt}
               variant="secondary"
+              disabled={isSubmitting}
             >
               <Send size={16} />
             </Button>
