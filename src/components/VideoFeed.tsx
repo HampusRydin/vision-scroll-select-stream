@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Select,
   SelectContent,
@@ -21,18 +21,6 @@ interface VideoFeedProps {
 
 const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   const [promptInput, setPromptInput] = useState(feed.prompts?.[feed.detectionMode] || "");
-  const [timestamp, setTimestamp] = useState(Date.now());
-  
-  // Refresh the image every 1 second
-  useEffect(() => {
-    if (!feed.url) return; // Don't start refreshing if there's no URL
-    
-    const refreshInterval = setInterval(() => {
-      setTimestamp(Date.now());
-    }, 1000);
-    
-    return () => clearInterval(refreshInterval);
-  }, [feed.url]);
   
   const detectionModes = [
     { id: "none", name: "None", prompt: false },
@@ -94,11 +82,16 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
       <div className="flex-1 relative">
         {feed.url ? (
           <>
-            <img 
-              src={`${feed.url}${feed.url.includes('?') ? '&' : '?'}_t=${timestamp}`}
-              alt={`${feed.name} camera feed`}
+            <video 
+              src={feed.url}
+              autoPlay
+              muted
+              loop
+              playsInline
               className="w-full h-full object-cover"
-            />
+            >
+              Your browser does not support the video tag.
+            </video>
             <div className="absolute top-0 left-0 p-3 bg-black/50 text-white text-sm w-fit">
               {feed.name}
             </div>
