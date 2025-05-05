@@ -77,10 +77,10 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
         ))}
       </div>
 
-      {/* Camera feed display using img tag instead of video */}
+      {/* Camera feed display using img tag directly with the user-provided URL */}
       <div className="flex-1 relative">
         <img 
-          src={"http://192.168.242.99:5173/video_feed"}
+          src={feed.url}
           alt={`${feed.name} camera feed`}
           className="w-full h-full object-cover"
           style={{ objectFit: "cover" }}
