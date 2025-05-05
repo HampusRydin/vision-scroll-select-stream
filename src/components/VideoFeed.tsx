@@ -21,7 +21,8 @@ interface VideoFeedProps {
 const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   const [promptInput, setPromptInput] = useState(feed.prompts?.[feed.detectionMode] || "");
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isVideoFeed, setIsVideoFeed] = useState(feed.url.endsWith('.mp4') || feed.url.includes('stream'));
+  const [isVideoFeed, setIsVideoFeed] = useState(true);
+  const [isLiveStream, setIsLiveStream] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   
   const detectionModes = [
@@ -54,12 +55,30 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   }, [feed.id, isPlaying]);
 
   useEffect(() => {
-    // Determine if the current URL is a video source
-    setIsVideoFeed(feed.url.endsWith('.mp4') || 
-                  feed.url.endsWith('.webm') || 
-                  feed.url.includes('stream') || 
-                  feed.url.includes('rtsp') || 
-                  feed.url.includes('rtmp'));
+    // Determine if the current URL is a video source or IP camera stream
+    const url = feed.url.toLowerCase();
+    
+    // Check for common video file extensions
+    const isVideoFile = url.endsWith('.mp4') || url.endsWith('.webm') || url.endsWith('.mov') || 
+                       url.endsWith('.avi') || url.endsWith('.mkv');
+    
+    // Check for streaming protocols and IP camera patterns
+    const isStream = url.includes('rtsp://') || url.includes('rtmp://') || 
+                    url.includes('http://') || url.includes('https://') ||
+                    url.includes('stream') || url.match(/\d+\.\d+\.\d+\.\d+/);
+                    
+    // Set state based on the type of feed
+    setIsVideoFeed(isVideoFile || isStream);
+    setIsLiveStream(isStream && !isVideoFile);
+    
+    // Auto-play IP camera streams when loaded
+    if (isStream && !isVideoFile && videoRef.current) {
+      setIsPlaying(true);
+      videoRef.current.play().catch(error => {
+        console.error("Error playing stream:", error);
+        setIsPlaying(false);
+      });
+    }
   }, [feed.url]);
 
   const getCurrentModeName = () => {
@@ -126,7 +145,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
               src={feed.url}
               playsInline
               muted
-              loop
+              loop={!isLiveStream} // Only loop if not a live stream
             />
             <Button 
               variant="secondary" 
@@ -136,6 +155,13 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
             >
               {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
             </Button>
+            
+            {isLiveStream && (
+              <div className="absolute top-12 right-4 bg-red-600 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                LIVE
+              </div>
+            )}
           </>
         ) : (
           <div 
