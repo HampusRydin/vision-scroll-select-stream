@@ -48,8 +48,20 @@ const Index = () => {
     addTerminalMessage("System initialized. Ready for detection.");
 
     const mockBackendUpdates = [
-      { id: "1", name: "Front Door", url: "/placeholder.svg", active: true, detectionMode: "none" },
-      { id: "2", name: "Back Yard", url: "/placeholder.svg", active: false, detectionMode: "none" },
+      { 
+        id: "1", 
+        name: "Front Door", 
+        url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", 
+        active: true, 
+        detectionMode: "none" 
+      },
+      { 
+        id: "2", 
+        name: "Back Yard", 
+        url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4", 
+        active: false, 
+        detectionMode: "none" 
+      },
     ];
 
     mockBackendUpdates.forEach((feed, index) => {

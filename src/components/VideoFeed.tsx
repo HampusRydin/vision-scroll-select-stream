@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Select,
   SelectContent,
@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Circle, Send } from "lucide-react";
+import { Play, Pause, Camera, CameraOff, Send } from "lucide-react";
 import { FeedData } from "@/pages/Index";
 import { Button } from "@/components/ui/button";
 
@@ -20,6 +20,9 @@ interface VideoFeedProps {
 
 const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   const [promptInput, setPromptInput] = useState(feed.prompts?.[feed.detectionMode] || "");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isVideoFeed, setIsVideoFeed] = useState(feed.url.endsWith('.mp4') || feed.url.includes('stream'));
+  const videoRef = useRef<HTMLVideoElement>(null);
   
   const detectionModes = [
     { id: "none", name: "None", prompt: false },
@@ -35,6 +38,29 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
       ]
     }
   ];
+
+  useEffect(() => {
+    // Reset video state when feed changes
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.play().catch(error => {
+          console.error("Error playing video:", error);
+          setIsPlaying(false);
+        });
+      } else {
+        videoRef.current.pause();
+      }
+    }
+  }, [feed.id, isPlaying]);
+
+  useEffect(() => {
+    // Determine if the current URL is a video source
+    setIsVideoFeed(feed.url.endsWith('.mp4') || 
+                  feed.url.endsWith('.webm') || 
+                  feed.url.includes('stream') || 
+                  feed.url.includes('rtsp') || 
+                  feed.url.includes('rtmp'));
+  }, [feed.url]);
 
   const getCurrentModeName = () => {
     for (const mode of detectionModes) {
@@ -63,6 +89,19 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     onChangeDetectionMode(feed.id, feed.detectionMode, promptInput);
   };
 
+  const togglePlayback = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play().catch(error => {
+          console.error("Error playing video:", error);
+        });
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
   return (
     <Card className="flex flex-col h-full overflow-hidden">
       {/* Pagination indicator moved to top */}
@@ -78,15 +117,47 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
       </div>
 
       {/* Video display */}
-      <div 
-        className="flex-1 video-feed"
-        style={{ 
-          backgroundImage: `url(${feed.url})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center'
-        }}
-      >
-        <div className="p-3 bg-black/50 text-white text-sm w-fit">
+      <div className="flex-1 relative">
+        {isVideoFeed ? (
+          <>
+            <video 
+              ref={videoRef}
+              className="w-full h-full object-cover"
+              src={feed.url}
+              playsInline
+              muted
+              loop
+            />
+            <Button 
+              variant="secondary" 
+              size="icon"
+              className="absolute bottom-4 right-4 bg-black/50 hover:bg-black/70"
+              onClick={togglePlayback}
+            >
+              {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+            </Button>
+          </>
+        ) : (
+          <div 
+            className="w-full h-full video-feed"
+            style={{ 
+              backgroundImage: `url(${feed.url})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+            }}
+          >
+            <Button 
+              variant="secondary" 
+              size="icon"
+              className="absolute bottom-4 right-4 bg-black/50 hover:bg-black/70"
+              onClick={() => {}}
+              disabled
+            >
+              <CameraOff className="h-5 w-5" />
+            </Button>
+          </div>
+        )}
+        <div className="absolute top-0 left-0 p-3 bg-black/50 text-white text-sm w-fit">
           {feed.name}
         </div>
       </div>
@@ -112,7 +183,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
                       <div className="flex items-center gap-2">
                         {child.name}
                         {feed.prompts?.[child.id] && (
-                          <Circle className="w-2 h-2 fill-green-500 stroke-none" />
+                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
                         )}
                       </div>
                     </SelectItem>
@@ -123,7 +194,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
                   <div className="flex items-center gap-2">
                     {mode.name}
                     {feed.prompts?.[mode.id] && (
-                      <Circle className="w-2 h-2 fill-green-500 stroke-none" />
+                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
                     )}
                   </div>
                 </SelectItem>
