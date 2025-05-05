@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
@@ -52,14 +53,14 @@ const Index = () => {
       { 
         id: "1", 
         name: "Front Door", 
-        url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", 
+        url: "", // Empty URL initially
         active: true, 
         detectionMode: "none" 
       },
       { 
         id: "2", 
         name: "Back Yard", 
-        url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4", 
+        url: "", // Empty URL initially
         active: false, 
         detectionMode: "none" 
       },
@@ -92,19 +93,21 @@ const Index = () => {
   };
 
   const handleNewFeed = (newFeed: FeedData) => {
-    // Make sure URL has protocol
+    // Make sure URL has protocol if it's not empty
     let processedUrl = newFeed.url;
     
-    // Add http:// if it's missing and looks like an IP address
-    if (!processedUrl.startsWith('http://') && !processedUrl.startsWith('https://') && 
-        /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}/.test(processedUrl)) {
-      processedUrl = `http://${processedUrl}`;
-      newFeed.url = processedUrl;
-    }
-    
-    // Basic URL validation before adding
-    if (!validateUrl(newFeed.url)) {
-      addTerminalMessage(`Warning: Feed URL format for ${newFeed.name} may not be supported`);
+    if (processedUrl) {
+      // Add http:// if it's missing and looks like an IP address
+      if (!processedUrl.startsWith('http://') && !processedUrl.startsWith('https://') && 
+          /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}/.test(processedUrl)) {
+        processedUrl = `http://${processedUrl}`;
+        newFeed.url = processedUrl;
+      }
+      
+      // Basic URL validation before adding
+      if (!validateUrl(processedUrl)) {
+        addTerminalMessage(`Warning: Feed URL format for ${newFeed.name} may not be supported`);
+      }
     }
     
     setFeeds(prevFeeds => {
