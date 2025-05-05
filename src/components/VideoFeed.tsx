@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Select,
   SelectContent,
@@ -21,6 +21,18 @@ interface VideoFeedProps {
 
 const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   const [promptInput, setPromptInput] = useState(feed.prompts?.[feed.detectionMode] || "");
+  const [timestamp, setTimestamp] = useState(Date.now());
+  
+  // Refresh the image every 1 second
+  useEffect(() => {
+    if (!feed.url) return; // Don't start refreshing if there's no URL
+    
+    const refreshInterval = setInterval(() => {
+      setTimestamp(Date.now());
+    }, 1000);
+    
+    return () => clearInterval(refreshInterval);
+  }, [feed.url]);
   
   const detectionModes = [
     { id: "none", name: "None", prompt: false },
@@ -83,7 +95,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
         {feed.url ? (
           <>
             <img 
-              src={feed.url}
+              src={`${feed.url}${feed.url.includes('?') ? '&' : '?'}_t=${timestamp}`}
               alt={`${feed.name} camera feed`}
               className="w-full h-full object-cover"
             />
