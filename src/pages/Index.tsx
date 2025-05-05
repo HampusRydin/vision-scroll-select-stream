@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
@@ -14,6 +15,7 @@ export interface FeedData {
   url: string;
   active: boolean;
   detectionMode: string;
+  type?: 'camera' | 'video' | 'image';
   prompts?: Record<string, string>;
   totalFeeds?: number;
   feedIndex?: number;
@@ -43,7 +45,6 @@ const Index = () => {
     ];
     
     setDetectionModes(mockDetectionModes);
-    setActiveFeeds(["1"]);
 
     addTerminalMessage("System initialized. Ready for detection.");
 
@@ -52,14 +53,16 @@ const Index = () => {
         id: "1", 
         name: "Front Door", 
         url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", 
-        active: true, 
+        active: true,
+        type: 'video',
         detectionMode: "none" 
       },
       { 
         id: "2", 
         name: "Back Yard", 
         url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4", 
-        active: false, 
+        active: false,
+        type: 'video',
         detectionMode: "none" 
       },
     ];
@@ -71,15 +74,32 @@ const Index = () => {
     });
   }, []);
 
+  useEffect(() => {
+    // Auto-activate the first feed if there are no active feeds
+    if (feeds.length > 0 && activeFeeds.length === 0) {
+      setActiveFeeds([feeds[0].id]);
+    }
+  }, [feeds, activeFeeds]);
+
   const handleNewFeed = (newFeed: FeedData) => {
     setFeeds(prevFeeds => {
       const feedExists = prevFeeds.some(feed => feed.id === newFeed.id);
       if (!feedExists) {
         addTerminalMessage(`New camera feed connected: ${newFeed.name}`);
+        
+        // Show toast notification for new feed
         toast({
           title: "New Camera Connected",
           description: `${newFeed.name} has been added to available feeds.`,
         });
+        
+        // Auto-activate the feed if it's a new camera
+        if (newFeed.type === 'camera') {
+          setTimeout(() => {
+            toggleFeed(newFeed.id);
+          }, 300);
+        }
+        
         return [...prevFeeds, newFeed];
       }
       return prevFeeds;
@@ -98,18 +118,61 @@ const Index = () => {
   };
 
   const updateFeedUrl = (id: string, newUrl: string) => {
+    // Determine the feed type based on URL
+    let type: 'camera' | 'video' | 'image' = 'image';
+    
+    if (newUrl === 'camera') {
+      type = 'camera';
+    } else if (
+      newUrl.endsWith('.mp4') || 
+      newUrl.endsWith('.webm') || 
+      newUrl.includes('stream') || 
+      newUrl.includes('rtsp') || 
+      newUrl.includes('rtmp')
+    ) {
+      type = 'video';
+    }
+
     setFeeds(prevFeeds =>
-      prevFeeds.map(feed =>
-        feed.id === id
-          ? { ...feed, url: newUrl }
-          : feed
-      )
+      prevFeeds.map(feed => {
+        if (feed.id === id) {
+          const updatedFeed = { 
+            ...feed, 
+            url: newUrl,
+            type
+          };
+          
+          // If this is a new camera feed, auto-activate it
+          if (type === 'camera' && !activeFeeds.includes(id)) {
+            setTimeout(() => toggleFeed(id), 300);
+          }
+          
+          return updatedFeed;
+        }
+        return feed;
+      })
     );
-    addTerminalMessage(`Updated URL for ${feeds.find(feed => feed.id === id)?.name || id}`);
+    
+    addTerminalMessage(`Updated feed source for ${feeds.find(feed => feed.id === id)?.name || id}`);
+    
     toast({
-      title: "Feed URL Updated",
-      description: `URL for ${feeds.find(feed => feed.id === id)?.name || id} has been updated.`,
+      title: "Feed Source Updated",
+      description: `Source for ${feeds.find(feed => feed.id === id)?.name || id} has been updated.`,
     });
+  };
+
+  const addNewCameraFeed = () => {
+    const id = `camera-${Date.now()}`;
+    const newFeed: FeedData = {
+      id,
+      name: `Camera ${feeds.length + 1}`,
+      url: 'camera',
+      active: false,
+      type: 'camera',
+      detectionMode: "none"
+    };
+    
+    handleNewFeed(newFeed);
   };
 
   const addTerminalMessage = (message: string) => {
@@ -218,6 +281,7 @@ const Index = () => {
           onToggleFeed={toggleFeed}
           onUpdateFeedName={updateFeedName}
           onUpdateFeedUrl={updateFeedUrl}
+          onAddNewCamera={addNewCameraFeed}
         />
       </ResizablePanel>
 
