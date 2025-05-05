@@ -82,16 +82,11 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
       <div className="flex-1 relative">
         {feed.url ? (
           <>
-            <video 
+            <img 
               src={feed.url}
-              autoPlay
-              muted
-              loop
-              playsInline
+              alt={`${feed.name} camera feed`}
               className="w-full h-full object-cover"
-            >
-              Your browser does not support the video tag.
-            </video>
+            />
             <div className="absolute top-0 left-0 p-3 bg-black/50 text-white text-sm w-fit">
               {feed.name}
             </div>
