@@ -21,7 +21,7 @@ interface VideoFeedProps {
 
 const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   const [promptInput, setPromptInput] = useState(feed.prompts?.[feed.detectionMode] || "");
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [errorDetails, setErrorDetails] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
@@ -43,6 +43,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     }
   ];
 
+  // Modified to handle IP camera streams better
   useEffect(() => {
     // Reset video state and error state when feed changes or on retry
     setHasError(false);
@@ -50,32 +51,54 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     setIsLoading(true);
     
     if (videoRef.current) {
-      videoRef.current.load(); // Force reload of video element with new source
-      
-      if (isPlaying) {
-        const playPromise = videoRef.current.play();
-        
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.error("Error playing video:", error);
-            setIsPlaying(false);
-            
-            // If autoplay fails due to browser policy
-            if (error.name === "NotAllowedError") {
-              console.log("Autoplay prevented by browser policy");
-              setErrorDetails("Browser prevented autoplay. Click play to start the stream.");
-              setHasError(false); // This is a minor issue, not a full error
-            } else {
-              setHasError(true);
-              setErrorDetails(getErrorMessage(error));
-            }
-          });
+      // For IP cameras, use srcObject if available (better for streams)
+      if (feed.url.includes('video_feed') || feed.url.includes('stream')) {
+        try {
+          // First try direct URL approach
+          videoRef.current.src = feed.url;
+          
+          // Attempt to play (this is especially important for IP camera streams)
+          const playPromise = videoRef.current.play();
+          
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                console.log("Stream playing successfully");
+                setIsPlaying(true);
+                setHasError(false);
+              })
+              .catch(error => {
+                console.error("Error playing stream:", error);
+                setIsPlaying(false);
+                setHasError(true);
+                setErrorDetails(getErrorMessage(error));
+              });
+          }
+        } catch (error) {
+          console.error("Error setting up video stream:", error);
+          setHasError(true);
+          setErrorDetails(getErrorMessage(error));
         }
       } else {
-        videoRef.current.pause();
+        // Standard approach for normal video URLs
+        videoRef.current.src = feed.url;
+        videoRef.current.load();
+        
+        if (isPlaying) {
+          const playPromise = videoRef.current.play();
+          
+          if (playPromise !== undefined) {
+            playPromise.catch(error => {
+              console.error("Error playing video:", error);
+              setIsPlaying(false);
+              setHasError(true);
+              setErrorDetails(getErrorMessage(error));
+            });
+          }
+        }
       }
     }
-  }, [feed.id, feed.url, retryCount, isPlaying]);
+  }, [feed.url, retryCount]);
 
   // Enhanced error message function with more specific diagnostics
   const getErrorMessage = (error: any): string => {
@@ -96,32 +119,6 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     }
     return error?.message || "Unknown error loading camera feed. Check that the camera is powered on and the URL is correct.";
   };
-
-  // We'll always treat the feed as a live stream since the user confirmed they'll only use IP cameras
-  useEffect(() => {
-    console.log("Feed URL:", feed.url);
-
-    // Try playing the video immediately for IP cameras
-    if (videoRef.current) {
-      setIsPlaying(true);
-      
-      // Small delay to let the video element initialize properly
-      setTimeout(() => {
-        if (videoRef.current) {
-          const playPromise = videoRef.current.play();
-          
-          if (playPromise !== undefined) {
-            playPromise.catch(error => {
-              console.error("Error playing stream:", error);
-              setIsPlaying(false);
-              setHasError(true);
-              setErrorDetails(getErrorMessage(error));
-            });
-          }
-        }
-      }, 100);
-    }
-  }, [feed.url]);
 
   const handleVideoLoaded = () => {
     setIsLoading(false);
@@ -284,13 +281,14 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
         <video 
           ref={videoRef}
           className="w-full h-full object-cover"
-          src={feed.url}
           playsInline
           muted
-          loop={false}
+          autoPlay
+          controls={false}
           onLoadedData={handleVideoLoaded}
           onError={handleVideoError}
           crossOrigin="anonymous"
+          style={{ objectFit: "cover" }}
         />
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30">
