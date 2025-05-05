@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { FeedData } from "@/pages/Index";
 import { Button } from "@/components/ui/button";
-import { Pencil, Link, Send, Camera } from "lucide-react";
+import { Pencil, Link, Send } from "lucide-react";
 
 interface SidebarProps {
   feeds: FeedData[];
@@ -14,17 +14,9 @@ interface SidebarProps {
   onToggleFeed: (id: string) => void;
   onUpdateFeedName: (id: string, newName: string) => void;
   onUpdateFeedUrl: (id: string, newUrl: string) => void;
-  onAddNewCamera: () => void;
 }
 
-const Sidebar = ({ 
-  feeds, 
-  activeFeeds, 
-  onToggleFeed, 
-  onUpdateFeedName, 
-  onUpdateFeedUrl,
-  onAddNewCamera
-}: SidebarProps) => {
+const Sidebar = ({ feeds, activeFeeds, onToggleFeed, onUpdateFeedName, onUpdateFeedUrl }: SidebarProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editingUrlId, setEditingUrlId] = useState<string | null>(null);
@@ -56,18 +48,7 @@ const Sidebar = ({
 
   return (
     <div className="w-full md:w-64 bg-secondary p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold">Camera Feeds</h2>
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={onAddNewCamera}
-          className="flex items-center gap-1"
-        >
-          <Camera className="h-4 w-4" />
-          <span>Add Camera</span>
-        </Button>
-      </div>
+      <h2 className="text-xl font-bold mb-4">Camera Feeds</h2>
       
       <div className="space-y-3">
         {feeds.map((feed) => (
@@ -96,11 +77,8 @@ const Sidebar = ({
                   </div>
                 ) : (
                   <>
-                    <Label htmlFor={`feed-${feed.id}`} className="cursor-pointer flex-1 flex items-center gap-1">
+                    <Label htmlFor={`feed-${feed.id}`} className="cursor-pointer flex-1">
                       {feed.name}
-                      {feed.type === 'camera' && (
-                        <span className="bg-red-500 text-white text-xs px-1 rounded">LIVE</span>
-                      )}
                     </Label>
                     <button
                       onClick={() => handleEditClick(feed)}
@@ -124,7 +102,7 @@ const Sidebar = ({
                       value={editUrl}
                       onChange={(e) => setEditUrl(e.target.value)}
                       className="flex-1"
-                      placeholder="Enter URL or 'camera' for webcam"
+                      placeholder="Enter URL"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           handleSaveUrl(feed.id);
@@ -142,7 +120,7 @@ const Sidebar = ({
                 ) : (
                   <>
                     <div className="text-xs text-muted-foreground truncate flex-1">
-                      {feed.type === 'camera' ? 'Webcam Input' : (feed.url || "No URL set")}
+                      {feed.url || "No URL set"}
                     </div>
                     <Button
                       size="sm"
@@ -158,26 +136,10 @@ const Sidebar = ({
             </div>
           </Card>
         ))}
-
-        {feeds.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
-            <Camera className="mx-auto h-8 w-8 mb-2 opacity-50" />
-            <p>No camera feeds available</p>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="mt-2"
-              onClick={onAddNewCamera}
-            >
-              Add Camera
-            </Button>
-          </div>
-        )}
       </div>
       
       <div className="mt-6 text-sm text-muted-foreground">
         <p>Active feeds: {activeFeeds.length}/5</p>
-        <p className="mt-1 text-xs">Type "camera" as URL to use webcam</p>
       </div>
     </div>
   );

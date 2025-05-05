@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, Camera, Video, VideoOff, Send } from "lucide-react";
+import { Play, Pause, Camera, CameraOff, Send } from "lucide-react";
 import { FeedData } from "@/pages/Index";
 import { Button } from "@/components/ui/button";
 
@@ -22,7 +22,6 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   const [promptInput, setPromptInput] = useState(feed.prompts?.[feed.detectionMode] || "");
   const [isPlaying, setIsPlaying] = useState(false);
   const [isVideoFeed, setIsVideoFeed] = useState(feed.url.endsWith('.mp4') || feed.url.includes('stream'));
-  const [isCameraActive, setIsCameraActive] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   
   const detectionModes = [
@@ -55,53 +54,13 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   }, [feed.id, isPlaying]);
 
   useEffect(() => {
-    // Determine if the current URL is a video source or camera
-    setIsVideoFeed(
-      feed.url.endsWith('.mp4') || 
-      feed.url.endsWith('.webm') || 
-      feed.url.includes('stream') || 
-      feed.url.includes('rtsp') || 
-      feed.url.includes('rtmp') ||
-      feed.type === 'camera'
-    );
-  }, [feed.url, feed.type]);
-
-  useEffect(() => {
-    // Handle camera access when feed type is 'camera'
-    const startCamera = async () => {
-      if (feed.type === 'camera' && videoRef.current && !isCameraActive) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: true,
-            audio: false
-          });
-          
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            videoRef.current.play();
-            setIsPlaying(true);
-            setIsCameraActive(true);
-          }
-        } catch (error) {
-          console.error("Error accessing camera:", error);
-          setIsCameraActive(false);
-        }
-      }
-    };
-
-    if (feed.type === 'camera') {
-      startCamera();
-    }
-
-    // Cleanup function to stop camera when component unmounts
-    return () => {
-      if (feed.type === 'camera' && isCameraActive && videoRef.current?.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
-        setIsCameraActive(false);
-      }
-    };
-  }, [feed.type, isCameraActive]);
+    // Determine if the current URL is a video source
+    setIsVideoFeed(feed.url.endsWith('.mp4') || 
+                  feed.url.endsWith('.webm') || 
+                  feed.url.includes('stream') || 
+                  feed.url.includes('rtsp') || 
+                  feed.url.includes('rtmp'));
+  }, [feed.url]);
 
   const getCurrentModeName = () => {
     for (const mode of detectionModes) {
@@ -130,33 +89,8 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     onChangeDetectionMode(feed.id, feed.detectionMode, promptInput);
   };
 
-  const togglePlayback = async () => {
-    if (feed.type === 'camera' && videoRef.current) {
-      if (isCameraActive) {
-        // Stop camera
-        const stream = videoRef.current.srcObject as MediaStream;
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-        }
-        videoRef.current.srcObject = null;
-        setIsCameraActive(false);
-        setIsPlaying(false);
-      } else {
-        // Start camera
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: true,
-            audio: false
-          });
-          videoRef.current.srcObject = stream;
-          videoRef.current.play();
-          setIsCameraActive(true);
-          setIsPlaying(true);
-        } catch (error) {
-          console.error("Error accessing camera:", error);
-        }
-      }
-    } else if (videoRef.current) {
+  const togglePlayback = () => {
+    if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
       } else {
@@ -189,7 +123,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
             <video 
               ref={videoRef}
               className="w-full h-full object-cover"
-              src={feed.type !== 'camera' ? feed.url : undefined}
+              src={feed.url}
               playsInline
               muted
               loop
@@ -200,7 +134,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
               className="absolute bottom-4 right-4 bg-black/50 hover:bg-black/70"
               onClick={togglePlayback}
             >
-              {isPlaying ? <Pause className="h-5 w-5" /> : feed.type === 'camera' ? <Camera className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+              {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
             </Button>
           </>
         ) : (
@@ -219,12 +153,12 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
               onClick={() => {}}
               disabled
             >
-              <VideoOff className="h-5 w-5" />
+              <CameraOff className="h-5 w-5" />
             </Button>
           </div>
         )}
         <div className="absolute top-0 left-0 p-3 bg-black/50 text-white text-sm w-fit">
-          {feed.name} {feed.type === 'camera' && '(Live)'}
+          {feed.name}
         </div>
       </div>
       
