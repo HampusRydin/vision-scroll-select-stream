@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, Camera, CameraOff, Send, AlertTriangle } from "lucide-react";
+import { Play, Pause, Camera, CameraOff, Send, AlertTriangle, Info } from "lucide-react";
 import { FeedData } from "@/pages/Index";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -25,6 +25,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   const [isVideoFeed, setIsVideoFeed] = useState(true);
   const [isLiveStream, setIsLiveStream] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   
@@ -46,6 +47,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   useEffect(() => {
     // Reset video state and error state when feed changes
     setHasError(false);
+    setErrorDetails("");
     setIsLoading(true);
     
     if (videoRef.current) {
@@ -62,8 +64,10 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
             // If autoplay fails due to browser policy
             if (error.name === "NotAllowedError") {
               console.log("Autoplay prevented by browser policy");
+              setErrorDetails("Browser prevented autoplay. Click play to start the stream.");
             } else {
               setHasError(true);
+              setErrorDetails(getErrorMessage(error));
             }
           });
         }
@@ -72,6 +76,20 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
       }
     }
   }, [feed.id, feed.url]);
+
+  // Function to get a user-friendly error message
+  const getErrorMessage = (error: any): string => {
+    if (error?.name === "NotSupportedError") {
+      return "The video format is not supported by your browser, or the stream might be offline.";
+    } else if (error?.name === "SecurityError") {
+      return "Security error: Camera access might be blocked due to CORS or permissions.";
+    } else if (error?.name === "NetworkError") {
+      return "Network error: Unable to connect to the camera stream.";
+    } else if (error?.name === "NotAllowedError") {
+      return "Permission denied: Browser prevented autoplay.";
+    }
+    return error?.message || "Unknown error loading camera feed";
+  };
 
   useEffect(() => {
     // Determine if the current URL is a video source or IP camera stream
@@ -85,7 +103,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     const isStream = url.includes('rtsp://') || url.includes('rtmp://') || 
                     url.includes('http://') || url.includes('https://') ||
                     url.includes('stream') || 
-                    /\d+\.\d+\.\d+\.\d+/.test(url); // Better IP address check
+                    /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]+)?(?:\/[\w\/\.]+)?\b/.test(url); // Better IP address check
                     
     // Set state based on the type of feed
     setIsVideoFeed(isVideoFile || isStream);
@@ -101,6 +119,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
           console.error("Error playing stream:", error);
           setIsPlaying(false);
           setHasError(true);
+          setErrorDetails(getErrorMessage(error));
         });
       }
     }
@@ -109,12 +128,38 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   const handleVideoLoaded = () => {
     setIsLoading(false);
     setHasError(false);
+    setErrorDetails("");
   };
 
-  const handleVideoError = () => {
+  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     setIsLoading(false);
     setHasError(true);
-    console.error("Video failed to load:", feed.url);
+    // Get detailed error information if possible
+    const videoElement = e.target as HTMLVideoElement;
+    const errorCode = videoElement.error?.code;
+    const errorMessage = videoElement.error?.message;
+    
+    let detailedError = "Failed to load camera feed";
+    
+    switch (errorCode) {
+      case 1: // MEDIA_ERR_ABORTED
+        detailedError = "Loading was aborted";
+        break;
+      case 2: // MEDIA_ERR_NETWORK
+        detailedError = "Network error occurred while loading";
+        break;
+      case 3: // MEDIA_ERR_DECODE
+        detailedError = "Video decoding error or unsupported format";
+        break;
+      case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
+        detailedError = "Video format not supported or camera stream unavailable";
+        break;
+      default:
+        detailedError = errorMessage || "Unknown error loading video";
+    }
+    
+    setErrorDetails(detailedError);
+    console.error("Video failed to load:", feed.url, detailedError);
   };
 
   const getCurrentModeName = () => {
@@ -148,17 +193,26 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
+        setIsPlaying(false);
       } else {
+        setIsLoading(true); // Show loading state when attempting to play
         const playPromise = videoRef.current.play();
         
         if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.error("Error playing video:", error);
-            setHasError(true);
-          });
+          playPromise
+            .then(() => {
+              setIsPlaying(true);
+              setHasError(false);
+              setErrorDetails("");
+            })
+            .catch(error => {
+              console.error("Error playing video:", error);
+              setIsPlaying(false);
+              setHasError(true);
+              setErrorDetails(getErrorMessage(error));
+            });
         }
       }
-      setIsPlaying(!isPlaying);
     }
   };
 
@@ -172,6 +226,14 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
               Failed to load camera feed
             </AlertDescription>
           </Alert>
+          {errorDetails && (
+            <Alert className="max-w-md mb-4 bg-muted/50">
+              <Info className="h-5 w-5 mr-2" />
+              <AlertDescription className="text-sm">
+                {errorDetails}
+              </AlertDescription>
+            </Alert>
+          )}
           <p className="text-sm text-muted-foreground mt-2">
             The URL may be incorrect or the camera might be offline
           </p>
@@ -182,6 +244,14 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
               className="max-h-full max-w-full object-contain opacity-30"
             />
           </div>
+          <Button 
+            variant="secondary" 
+            size="sm"
+            className="mt-4"
+            onClick={togglePlayback}
+          >
+            <Play className="h-4 w-4 mr-2" /> Try Again
+          </Button>
         </div>
       );
     }
@@ -198,6 +268,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
             loop={!isLiveStream} // Only loop if not a live stream
             onLoadedData={handleVideoLoaded}
             onError={handleVideoError}
+            crossOrigin="anonymous"
           />
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30">
@@ -336,3 +407,4 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
 };
 
 export default VideoFeed;
+

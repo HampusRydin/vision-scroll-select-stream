@@ -80,17 +80,23 @@ const Index = () => {
     // Check for common video formats
     const isVideoFile = /\.(mp4|webm|mov|avi|mkv)$/i.test(url);
     
-    // Check for streaming protocols or IP format
+    // Enhanced check for streaming protocols or IP format
+    // This includes standard URLs, IP addresses with optional port and path
     const isStreamingUrl = url.includes('rtsp://') || 
                           url.includes('rtmp://') || 
                           url.includes('http://') || 
                           url.includes('https://') ||
-                          /\d+\.\d+\.\d+\.\d+/.test(url);
+                          /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]+)?(?:\/[\w\/\.\-\_]+)?\b/.test(url);
                           
     return isVideoFile || isStreamingUrl;
   };
 
   const handleNewFeed = (newFeed: FeedData) => {
+    // Basic URL validation before adding
+    if (!validateUrl(newFeed.url)) {
+      addTerminalMessage(`Warning: Feed URL format for ${newFeed.name} may not be supported`);
+    }
+    
     setFeeds(prevFeeds => {
       const feedExists = prevFeeds.some(feed => feed.id === newFeed.id);
       if (!feedExists) {
@@ -135,7 +141,7 @@ const Index = () => {
     );
     
     const feedName = feeds.find(feed => feed.id === id)?.name || id;
-    addTerminalMessage(`Updated URL for ${feedName}`);
+    addTerminalMessage(`Updated URL for ${feedName}: ${newUrl}`);
     
     toast({
       title: "Feed URL Updated",
@@ -311,3 +317,4 @@ const Index = () => {
 };
 
 export default Index;
+
