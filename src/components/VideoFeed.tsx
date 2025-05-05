@@ -1,5 +1,5 @@
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import {
   Select,
   SelectContent,
@@ -9,10 +9,9 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, Send, AlertTriangle, Info } from "lucide-react";
+import { Send } from "lucide-react";
 import { FeedData } from "@/pages/Index";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface VideoFeedProps {
   feed: FeedData;
@@ -21,12 +20,6 @@ interface VideoFeedProps {
 
 const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   const [promptInput, setPromptInput] = useState(feed.prompts?.[feed.detectionMode] || "");
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const [errorDetails, setErrorDetails] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [retryCount, setRetryCount] = useState(0);
-  const videoRef = useRef<HTMLVideoElement>(null);
   
   const detectionModes = [
     { id: "none", name: "None", prompt: false },
@@ -42,127 +35,6 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
       ]
     }
   ];
-
-  // Modified to handle IP camera streams better
-  useEffect(() => {
-    // Reset video state and error state when feed changes or on retry
-    setHasError(false);
-    setErrorDetails("");
-    setIsLoading(true);
-    
-    if (videoRef.current) {
-      // For IP cameras, use srcObject if available (better for streams)
-      if (feed.url.includes('video_feed') || feed.url.includes('stream')) {
-        try {
-          // First try direct URL approach
-          videoRef.current.src = feed.url;
-          
-          // Attempt to play (this is especially important for IP camera streams)
-          const playPromise = videoRef.current.play();
-          
-          if (playPromise !== undefined) {
-            playPromise
-              .then(() => {
-                console.log("Stream playing successfully");
-                setIsPlaying(true);
-                setHasError(false);
-              })
-              .catch(error => {
-                console.error("Error playing stream:", error);
-                setIsPlaying(false);
-                setHasError(true);
-                setErrorDetails(getErrorMessage(error));
-              });
-          }
-        } catch (error) {
-          console.error("Error setting up video stream:", error);
-          setHasError(true);
-          setErrorDetails(getErrorMessage(error));
-        }
-      } else {
-        // Standard approach for normal video URLs
-        videoRef.current.src = feed.url;
-        videoRef.current.load();
-        
-        if (isPlaying) {
-          const playPromise = videoRef.current.play();
-          
-          if (playPromise !== undefined) {
-            playPromise.catch(error => {
-              console.error("Error playing video:", error);
-              setIsPlaying(false);
-              setHasError(true);
-              setErrorDetails(getErrorMessage(error));
-            });
-          }
-        }
-      }
-    }
-  }, [feed.url, retryCount]);
-
-  // Enhanced error message function with more specific diagnostics
-  const getErrorMessage = (error: any): string => {
-    if (error?.name === "NotSupportedError") {
-      return "The stream format is not supported by your browser, or the stream might be offline.";
-    } else if (error?.name === "SecurityError") {
-      return "Security error: Camera access might be blocked due to CORS. Try enabling CORS on your camera server.";
-    } else if (error?.name === "NetworkError" || error?.message?.includes("network")) {
-      return "Network error: Unable to connect to the camera stream. Check that the IP address is correct and accessible from your current network.";
-    } else if (error?.name === "NotAllowedError") {
-      return "Permission denied: Browser prevented autoplay.";
-    } else if (error?.code === 2) {
-      return "Network error: The camera might be on a different network or behind a firewall.";
-    } else if (error?.code === 3) {
-      return "Decoding error: The stream format might not be compatible with your browser.";
-    } else if (error?.code === 4) {
-      return "Format not supported: The camera stream format is not compatible or the URL might be incorrect.";
-    }
-    return error?.message || "Unknown error loading camera feed. Check that the camera is powered on and the URL is correct.";
-  };
-
-  const handleVideoLoaded = () => {
-    setIsLoading(false);
-    setHasError(false);
-    setErrorDetails("");
-    console.log("Video loaded successfully:", feed.url);
-  };
-
-  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
-    setIsLoading(false);
-    setHasError(true);
-    // Get detailed error information if possible
-    const videoElement = e.target as HTMLVideoElement;
-    const errorCode = videoElement.error?.code;
-    const errorMessage = videoElement.error?.message;
-    
-    console.error("Video error:", {
-      code: errorCode,
-      message: errorMessage,
-      url: feed.url
-    });
-    
-    let detailedError = "Failed to load camera feed";
-    
-    switch (errorCode) {
-      case 1: // MEDIA_ERR_ABORTED
-        detailedError = "Loading was aborted";
-        break;
-      case 2: // MEDIA_ERR_NETWORK
-        detailedError = "Network error: The camera might be on a different network or the URL is incorrect";
-        break;
-      case 3: // MEDIA_ERR_DECODE
-        detailedError = "Video decoding error or unsupported format";
-        break;
-      case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
-        detailedError = "Video format not supported or camera stream unavailable. Check if the URL endpoint returns a valid video stream.";
-        break;
-      default:
-        detailedError = errorMessage || "Unknown error loading video";
-    }
-    
-    setErrorDetails(detailedError);
-    console.error("Video failed to load:", feed.url, detailedError);
-  };
 
   const getCurrentModeName = () => {
     for (const mode of detectionModes) {
@@ -191,123 +63,6 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     onChangeDetectionMode(feed.id, feed.detectionMode, promptInput);
   };
 
-  const togglePlayback = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-        setIsPlaying(false);
-      } else {
-        setIsLoading(true); // Show loading state when attempting to play
-        const playPromise = videoRef.current.play();
-        
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              setIsPlaying(true);
-              setHasError(false);
-              setErrorDetails("");
-            })
-            .catch(error => {
-              console.error("Error playing video:", error);
-              setIsPlaying(false);
-              setHasError(true);
-              setErrorDetails(getErrorMessage(error));
-            });
-        }
-      }
-    }
-  };
-
-  const retryLoading = () => {
-    setRetryCount(prev => prev + 1);
-    setIsLoading(true);
-    setHasError(false);
-    setErrorDetails("");
-  };
-
-  const renderVideoContent = () => {
-    if (hasError) {
-      return (
-        <div className="h-full flex flex-col items-center justify-center p-6 bg-muted/20">
-          <Alert variant="destructive" className="max-w-md mb-4 bg-destructive/10">
-            <AlertTriangle className="h-5 w-5 mr-2" />
-            <AlertDescription>
-              Failed to load camera feed
-            </AlertDescription>
-          </Alert>
-          {errorDetails && (
-            <Alert className="max-w-md mb-4 bg-muted/50">
-              <Info className="h-5 w-5 mr-2" />
-              <AlertDescription className="text-sm whitespace-pre-wrap">
-                {errorDetails}
-              </AlertDescription>
-            </Alert>
-          )}
-          <p className="text-sm text-muted-foreground mt-2">
-            Check that the endpoint returns a valid video stream
-          </p>
-          <div className="w-full h-48 mt-6 bg-muted rounded-md flex items-center justify-center">
-            <img 
-              src="https://images.unsplash.com/photo-1518770660439-4636190af475" 
-              alt="Camera error" 
-              className="max-h-full max-w-full object-contain opacity-30"
-            />
-          </div>
-          <div className="flex gap-2 mt-4">
-            <Button 
-              variant="secondary" 
-              size="sm"
-              onClick={retryLoading}
-            >
-              <Play className="h-4 w-4 mr-2" /> Try Again
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                // Open feed URL in new tab for manual testing
-                window.open(feed.url, '_blank');
-              }}
-            >
-              Test URL
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <>
-        <video 
-          ref={videoRef}
-          className="w-full h-full object-cover"
-          playsInline
-          muted
-          autoPlay
-          controls={false}
-          onLoadedData={handleVideoLoaded}
-          onError={handleVideoError}
-          crossOrigin="anonymous"
-          style={{ objectFit: "cover" }}
-        />
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-white ml-3">Connecting...</p>
-          </div>
-        )}
-        <Button 
-          variant="secondary" 
-          size="icon"
-          className="absolute bottom-4 right-4 bg-black/50 hover:bg-black/70"
-          onClick={togglePlayback}
-        >
-          {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-        </Button>
-      </>
-    );
-  };
-
   return (
     <Card className="flex flex-col h-full overflow-hidden">
       {/* Pagination indicator moved to top */}
@@ -322,9 +77,14 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
         ))}
       </div>
 
-      {/* Video display */}
+      {/* Camera feed display using img tag instead of video */}
       <div className="flex-1 relative">
-        {renderVideoContent()}
+        <img 
+          src={feed.url}
+          alt={`${feed.name} camera feed`}
+          className="w-full h-full object-cover"
+          style={{ objectFit: "cover" }}
+        />
         <div className="absolute top-0 left-0 p-3 bg-black/50 text-white text-sm w-fit">
           {feed.name}
         </div>
