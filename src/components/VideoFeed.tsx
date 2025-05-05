@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Select,
@@ -13,6 +12,10 @@ import { Send, AlertTriangle } from "lucide-react";
 import { FeedData } from "@/pages/Index";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+
+// API endpoint for sending prompts - configurable
+const API_ENDPOINT = "https://api.example.com/detection-prompts";
 
 interface VideoFeedProps {
   feed: FeedData;
@@ -21,6 +24,7 @@ interface VideoFeedProps {
 
 const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   const [promptInput, setPromptInput] = useState(feed.prompts?.[feed.detectionMode] || "");
+  const { toast } = useToast();
   
   const detectionModes = [
     { id: "none", name: "None", prompt: false },
@@ -60,8 +64,44 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     setPromptInput(feed.prompts?.[value] || "");
   };
 
-  const handleSendPrompt = () => {
+  const handleSendPrompt = async () => {
+    // Save prompt locally first
     onChangeDetectionMode(feed.id, feed.detectionMode, promptInput);
+    
+    // Send to remote API endpoint
+    if (promptInput.trim()) {
+      try {
+        const response = await fetch(API_ENDPOINT, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            feedId: feed.id,
+            feedName: feed.name,
+            detectionMode: feed.detectionMode,
+            prompt: promptInput,
+            timestamp: new Date().toISOString()
+          }),
+        });
+        
+        if (response.ok) {
+          toast({
+            title: "Prompt sent successfully",
+            description: `${getCurrentModeName()} prompt sent to API`,
+          });
+        } else {
+          throw new Error(`Server responded with ${response.status}`);
+        }
+      } catch (error) {
+        console.error("Failed to send prompt to API:", error);
+        toast({
+          title: "Failed to send prompt",
+          description: "Could not send the prompt to the remote API",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
   return (
