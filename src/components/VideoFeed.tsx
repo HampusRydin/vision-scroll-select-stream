@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import {
   Select,
@@ -8,11 +9,10 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Play, Pause, Camera, CameraOff, Send, AlertTriangle, Info } from "lucide-react";
+import { Play, Pause, Send, AlertTriangle, Info } from "lucide-react";
 import { FeedData } from "@/pages/Index";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface VideoFeedProps {
   feed: FeedData;
@@ -22,7 +22,6 @@ interface VideoFeedProps {
 const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
   const [promptInput, setPromptInput] = useState(feed.prompts?.[feed.detectionMode] || "");
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isVideoFeed, setIsVideoFeed] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [errorDetails, setErrorDetails] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
@@ -76,12 +75,12 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
         videoRef.current.pause();
       }
     }
-  }, [feed.id, feed.url, retryCount]);
+  }, [feed.id, feed.url, retryCount, isPlaying]);
 
   // Enhanced error message function with more specific diagnostics
   const getErrorMessage = (error: any): string => {
     if (error?.name === "NotSupportedError") {
-      return "The video format is not supported by your browser, or the stream might be offline.";
+      return "The stream format is not supported by your browser, or the stream might be offline.";
     } else if (error?.name === "SecurityError") {
       return "Security error: Camera access might be blocked due to CORS. Try enabling CORS on your camera server.";
     } else if (error?.name === "NetworkError" || error?.message?.includes("network")) {
@@ -91,34 +90,19 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
     } else if (error?.code === 2) {
       return "Network error: The camera might be on a different network or behind a firewall.";
     } else if (error?.code === 3) {
-      return "Decoding error: The video format might not be compatible with your browser.";
+      return "Decoding error: The stream format might not be compatible with your browser.";
     } else if (error?.code === 4) {
       return "Format not supported: The camera stream format is not compatible or the URL might be incorrect.";
     }
     return error?.message || "Unknown error loading camera feed. Check that the camera is powered on and the URL is correct.";
   };
 
+  // We'll always treat the feed as a live stream since the user confirmed they'll only use IP cameras
   useEffect(() => {
-    // Determine if the current URL is a video source or IP camera stream
-    const url = feed.url.toLowerCase();
-    
-    // Check for common video file extensions
-    const isVideoFile = url.endsWith('.mp4') || url.endsWith('.webm') || url.endsWith('.mov') || 
-                       url.endsWith('.avi') || url.endsWith('.mkv');
-    
-    // Check for streaming protocols and IP camera patterns
-    const isStream = url.includes('rtsp://') || url.includes('rtmp://') || 
-                    url.includes('http://') || url.includes('https://') ||
-                    url.includes('stream') || url.includes('video_feed') ||
-                    /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]+)?(?:\/[\w\/\.\_\-\~\:\?\#\[\]\@\!\$\&\'\(\)\*\+\,\;\=]*)?$/.test(url);
-                    
-    // Set state based on the type of feed
-    setIsVideoFeed(isVideoFile || isStream);
-    
-    console.log("Feed URL:", url);
+    console.log("Feed URL:", feed.url);
 
     // Try playing the video immediately for IP cameras
-    if (isStream && videoRef.current) {
+    if (videoRef.current) {
       setIsPlaying(true);
       
       // Small delay to let the video element initialize properly
@@ -263,7 +247,7 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
             </Alert>
           )}
           <p className="text-sm text-muted-foreground mt-2">
-            For IP cameras, check that the endpoint returns a valid video stream
+            Check that the endpoint returns a valid video stream
           </p>
           <div className="w-full h-48 mt-6 bg-muted rounded-md flex items-center justify-center">
             <img 
@@ -295,56 +279,34 @@ const VideoFeed = ({ feed, onChangeDetectionMode }: VideoFeedProps) => {
       );
     }
 
-    if (isVideoFeed) {
-      return (
-        <>
-          <video 
-            ref={videoRef}
-            className="w-full h-full object-cover"
-            src={feed.url}
-            playsInline
-            muted
-            loop={false}
-            onLoadedData={handleVideoLoaded}
-            onError={handleVideoError}
-          />
-          {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-white ml-3">Connecting...</p>
-            </div>
-          )}
-          <Button 
-            variant="secondary" 
-            size="icon"
-            className="absolute bottom-4 right-4 bg-black/50 hover:bg-black/70"
-            onClick={togglePlayback}
-          >
-            {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-          </Button>
-        </>
-      );
-    }
-
     return (
-      <div 
-        className="w-full h-full video-feed"
-        style={{ 
-          backgroundImage: `url(${feed.url})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center'
-        }}
-      >
+      <>
+        <video 
+          ref={videoRef}
+          className="w-full h-full object-cover"
+          src={feed.url}
+          playsInline
+          muted
+          loop={false}
+          onLoadedData={handleVideoLoaded}
+          onError={handleVideoError}
+          crossOrigin="anonymous"
+        />
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-white ml-3">Connecting...</p>
+          </div>
+        )}
         <Button 
           variant="secondary" 
           size="icon"
           className="absolute bottom-4 right-4 bg-black/50 hover:bg-black/70"
-          onClick={() => {}}
-          disabled
+          onClick={togglePlayback}
         >
-          <CameraOff className="h-5 w-5" />
+          {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
         </Button>
-      </div>
+      </>
     );
   };
 
