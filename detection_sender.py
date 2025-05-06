@@ -6,7 +6,7 @@ import random
 from datetime import datetime
 
 # Configuration
-API_ENDPOINT = "http://localhost:5173/detection_output"  # Update this URL if your app is hosted elsewhere
+API_ENDPOINT = "http://localhost:8080/detection_output"  # Updated to use port 8080
 FEED_IDS = ["1", "2"]  # These should match your camera feed IDs
 EVENT_TYPES = [
     "Person detected", 
