@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import VideoFeed from "@/components/VideoFeed";
@@ -178,7 +177,13 @@ const Index = () => {
 
   const addTerminalMessage = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
-    setTerminalOutput(prev => [...prev, `[${timestamp}] ${message}`]);
+    
+    // If the message is JSON or starts with {, don't add timestamp
+    if (typeof message === 'object' || (typeof message === 'string' && message.trim().startsWith('{'))) {
+      setTerminalOutput(prev => [...prev, message]);
+    } else {
+      setTerminalOutput(prev => [...prev, `[${timestamp}] ${message}`]);
+    }
   };
 
   const toggleFeed = (id: string) => {
@@ -264,6 +269,39 @@ const Index = () => {
         feedIndex: currentFeedIndex
       }
     : null;
+
+  useEffect(() => {
+    const handleDetectionEvent = (event: CustomEvent) => {
+      const { data } = event.detail;
+      
+      // Format the JSON data as a string for display in the terminal
+      try {
+        const jsonString = JSON.stringify(data, null, 2);
+        addTerminalMessage(jsonString);
+        
+        // Also update UI based on detection if needed
+        const feedId = data.feedId;
+        if (feedId && feeds.find(f => f.id === feedId)) {
+          // You could update feed state here based on detection data
+          console.log(`Detection for feed ${feedId}:`, data);
+        }
+      } catch (error) {
+        console.error("Error processing detection event:", error);
+      }
+    };
+    
+    // Add event listener for detection events
+    document.addEventListener('detectionEvent', handleDetectionEvent as EventListener);
+    
+    // Add a startup message
+    addTerminalMessage("System initialized. Ready for detection.");
+    addTerminalMessage(`Send detection data to: ${window.location.origin}/detection_output`);
+    
+    // Cleanup listener on unmount
+    return () => {
+      document.removeEventListener('detectionEvent', handleDetectionEvent as EventListener);
+    };
+  }, [feeds]);
 
   return (
     <ResizablePanelGroup direction="horizontal" className="min-h-screen">
