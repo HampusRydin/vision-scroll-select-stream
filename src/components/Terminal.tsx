@@ -27,7 +27,13 @@ const Terminal = ({ messages }: TerminalProps) => {
     window.fetch = async function(input, init) {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       
-      if (url.includes(apiEndpoint) && init?.method === 'POST') {
+      // Fix: Compare only the path portion of the URL
+      const fullEndpoint = `${window.location.origin}${apiEndpoint}`;
+      const urlObj = new URL(url.startsWith('http') ? url : `${window.location.origin}${url}`);
+      const endpointObj = new URL(fullEndpoint);
+      
+      // Check if paths match (ignoring origin)
+      if (urlObj.pathname === endpointObj.pathname && init?.method === 'POST') {
         try {
           // Get the JSON data from the request
           const body = init.body;
@@ -98,16 +104,18 @@ const Terminal = ({ messages }: TerminalProps) => {
                 <code className="block mt-1 p-2 bg-gray-800 rounded">
                   POST {window.location.origin}{apiEndpoint}
                 </code>
-                <pre className="mt-2 p-2 bg-gray-800 rounded overflow-auto text-xs">
-{`Example payload:
-{
+              </p>
+              <div className="mt-2 p-2 bg-gray-800 rounded overflow-auto text-xs">
+                Example payload:
+                <pre className="mt-1">
+{`{
   "event": "Person detected",
   "timestamp": "14:35:22",
   "feedId": "1",
   "confidence": 0.95
 }`}
                 </pre>
-              </p>
+              </div>
             </div>
           )}
         </div>
