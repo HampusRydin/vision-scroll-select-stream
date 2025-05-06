@@ -23,9 +23,14 @@ const Terminal = ({ messages }: TerminalProps) => {
   useEffect(() => {
     const originalFetch = window.fetch;
     
+    console.log("Setting up detection event listener for endpoint:", apiEndpoint);
+    
     // Override fetch to intercept specific endpoints
     window.fetch = async function(input, init) {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      
+      // For debugging - log all fetch requests
+      console.log("Fetch intercepted:", url, init?.method);
       
       // Fix: Compare only the path portion of the URL
       const fullEndpoint = `${window.location.origin}${apiEndpoint}`;
@@ -33,12 +38,16 @@ const Terminal = ({ messages }: TerminalProps) => {
       const endpointObj = new URL(fullEndpoint);
       
       // Check if paths match (ignoring origin)
+      console.log("Comparing paths:", urlObj.pathname, "vs", endpointObj.pathname);
+      
       if (urlObj.pathname === endpointObj.pathname && init?.method === 'POST') {
+        console.log("Detection endpoint matched! Processing request...");
         try {
           // Get the JSON data from the request
           const body = init.body;
           if (typeof body === 'string') {
             const data = JSON.parse(body);
+            console.log("Received detection data:", data);
             
             // Create a custom event with the data
             const event = new CustomEvent('detectionEvent', { 
@@ -56,10 +65,15 @@ const Terminal = ({ messages }: TerminalProps) => {
             });
             
             // Return a mock successful response
-            return Promise.resolve(new Response(JSON.stringify({ success: true }), {
+            const successResponse = new Response(JSON.stringify({ success: true }), {
               status: 200,
               headers: { 'Content-Type': 'application/json' }
-            }));
+            });
+            
+            console.log("Returning mock response:", successResponse);
+            return Promise.resolve(successResponse);
+          } else {
+            console.error("Request body is not a string:", body);
           }
         } catch (error) {
           console.error("Error processing detection data:", error);
